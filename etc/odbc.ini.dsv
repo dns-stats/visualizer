@@ -1,0 +1,21 @@
+# Sample odbc.ini file for Visualizer. This must be at /etc/odbc.ini.
+#
+# You will need to ensure packages unixodbc, odbcinst and odbc-postgresql
+# are installed.
+
+[DEFAULT]
+Driver = dsv
+
+[dsv]
+Description         = Connection to Visualizer PostgreSQL
+Driver              = /usr/lib/x86_64-linux-gnu/odbc/psqlodbcw.so
+Database            = dsv
+Servername          = dsv-datastore
+UserName            = dsv
+Password            = dsv
+Port                = 5432
+Protocol            = 9.3
+ReadOnly            = Yes
+RowVersioning       = No
+ShowSystemTables    = No
+ConnSettings        =

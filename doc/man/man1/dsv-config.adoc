@@ -1,0 +1,38 @@
+= dsv-config(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-config - get Visualizer configuration value
+
+== SYNOPSIS
+
+*dsv-config* [_OPTION_]... _KEY_ [_KEY_]...
+
+== DESCRIPTION
+
+Obtain a value from Visualizer configuration. Descend the key hierarchy and return
+the value found at the end.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+*-r, --random*::
+  If the value is a set of comma-separated items, pick one of the items at
+  random and return just that item.
+
+== EXAMPLE
+
+----
+$ dsv-config -r clickhouse servers
+dsv-clickhouse2
+----
+
+== EXIT STATUS
+
+0 on success, non-zero on any error.

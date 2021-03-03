@@ -1,0 +1,8 @@
+Document: dns-stats-visualizer
+Title: DNS STATS Visualizer documentation
+Author: Jim Hague
+Abstract: Collected documents on DNS STATS Visualizer operation
+Section: System/Monitoring
+Format: HTML
+Index: /usr/share/doc/dns-stats-visualizer/Overview_and_Basic_Install.html
+Files: /usr/share/doc/dns-stats-visualizer/*.html

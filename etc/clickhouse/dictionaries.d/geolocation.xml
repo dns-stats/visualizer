@@ -1,0 +1,41 @@
+<dictionaries>
+  <comment>Geolocation data</comment>
+  <dictionary>
+    <name>geolocation</name>
+    <source>
+      <odbc>
+        <connection_string>DSN=dsv</connection_string>
+        <table>geolocation</table>
+      </odbc>
+    </source>
+    <lifetime>300</lifetime>
+    <layout>
+      <hashed/>
+    </layout>
+    <structure>
+      <id>
+        <name>id</name>
+      </id>
+      <attribute>
+        <name>country_id</name>
+        <type>UInt64</type>
+        <null_value>0</null_value>
+      </attribute>
+      <attribute>
+        <name>name</name>
+        <type>String</type>
+        <null_value>Unknown</null_value>
+      </attribute>
+      <attribute>
+        <name>latitude</name>
+        <type>Float32</type>
+        <null_value>0.0</null_value>
+      </attribute>
+      <attribute>
+        <name>longitude</name>
+        <type>Float32</type>
+        <null_value>0.0</null_value>
+      </attribute>
+    </structure>
+  </dictionary>
+</dictionaries>

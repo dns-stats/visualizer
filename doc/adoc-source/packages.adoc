@@ -1,0 +1,42 @@
+== Packages
+
+A number of packages are available for Visualizer. The core packages are required for a default install as described in
+xref:Overview_and_Basic_install.adoc#_installing_dns_stats_visualizer[Installing DNS-STATS Visualizer]
+
+
+.Visualiser core packages
+[cols="2a,3a"]
+|===
+| `dns-stats-visualizer-base`
+| Base package required for all installs.
+
+| `dns-stats-visualizer-import`
+| Install on the Datastore host to provide the import framework and PostgreSQL database.
+
+| `dns-stats-visualizer-clickhouse-server`
+| Install on the ClickHouse host to configure the ClickHouse database and schema.
+
+| `dns-stats-visualizer-grafana-main`
+| Install on the Grafana host to provide the default 'main' Visualizer dashboard.
+
+|===
+
+The optional packages provide additional functionality as described in <<_optional_modules>>.
+
+.Visualiser optional packages
+[cols="2a,3a"]
+|===
+
+| `dns-stats-visualizer-doc`
+| Install the documentation.
+
+| `dns-stats-visualizer-rssac-notify`
+| Install on the Datastore host to gather data for the RSSAC `zone load` metric
+
+| `dns-stats-visualizer-rssac-reports`
+| Install on the Grafana host to generate RSSAC02 format yaml reports.
+
+| `dns-stats-visualizer-import-mirror`
+| Install on the Datastore host to provide an `rsync` mechanism for file import.
+
+|===

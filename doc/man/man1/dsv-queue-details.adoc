@@ -1,0 +1,37 @@
+= dsv-queue-details(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-queue-details - report per-node counts for import queues
+
+== SYNOPSIS
+
+*dsv-queue-details* [_OPTION_]...
+
+== DESCRIPTION
+
+Generate per-node counts for files currently in the import queues.
+Print a report, or update ClickHouse with the data.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+*-p, --print*::
+  Print a report to standard output
+
+*-s, --store*::
+  Update the queue size data in ClickHouse.
+
+== EXIT STATUS
+
+Non-zero on any error.
+
+== SEE ALSO
+
+link:dsv.cfg.adoc[dsv.cfg].

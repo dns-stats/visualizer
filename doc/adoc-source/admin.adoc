@@ -1,0 +1,213 @@
+== Administration
+
+=== Security notes
+
+System security issues for e.g. ClickHouse, PostgreSQL and other standard
+components of Visualizer are out of scope for this manual. Installers are
+expected to be competent in such matters rather than rely on this document.
+
+However, one important consideration is highlighted here relating to Grafana
+deployment that may not be immediately obvious. That is, with the default
+install described here, any user who has access to the Grafana server also has
+direct query access to all data in the database including that in the `raw`
+tables. This may be acceptable for a deployment within an organisation but if
+deploying a publicly accessible dashboard more security measures should be put
+in place. The following section provides more details.
+
+==== Grafana data access
+
+To use Grafana with Visualizer, Grafana installations need to configure a data source
+that gives Grafana access to the Visualizer ClickHouse database.
+In the sample packaged installation, this is done by configuring a ClickHouse
+user with read-only access to the Visualizer ClickHouse databases.
+
+These databases include the raw query/response data, which in turn includes the
+IP address of the client making the request. This address may, of course,
+be regarded as Personally Identifiable Information (PII) in your legal jurisdiction,
+and require some level of protection.
+
+No existing Grafana dashboard provided by Visualizer reports on
+individual IP addresses, though there are some that report down to
+subnet level. However, it is important to realise that Grafana runs
+the queries it uses to collect information for a dashboard on the
+client machine of the end user. This means that it is possible for any
+technically adept user to construct their own queries; the mere fact
+that individual client addresses are not shown in a dashboard does
+*not* mean that client addresses cannot be accessed. In short, there
+is nothing to stop any user with access to the Grafana dashboards
+collecting information from any ClickHouse table accessible to Grafana.
+
+Commonly employed techniques for limiting access include more complex schemas
+separating raw from aggregated data, use of proxies and allow-listing of queries.
+
+=== Gearman queues
+
+==== Overview
+
+Each datastore runs an instance of the http://gearman.org[GearMan] server.
+GearMan is a simple and lightweight queue manager.
+
+The following queues are maintained by Gearman:
+
+* `cdns-to-tsv`. Convert C-DNS file to TSV.
+* `cdns-to-pcap`. Convert C-DNS file to PCAP.
+* `import-tsv`. Import the TSV file data into the ClickHouse database and delete the TSV file.
+
+Visualizer processing uses a directory `incoming/pending` as a workspace to
+track/store files that are currently referenced by jobs in the Gearman queues:
+
+* When jobs are added to the `cdns-to-tsv` and `cdns-to-pcap` queues a hard link
+  is also created in the `incoming/pending` or `pcap/pending` directory to the
+  C-DNS file that the job will process.
+* All jobs in the `import-tsv` queue reference a TSV file in the `incoming/pending`
+  directory waiting for import into ClickHouse.
+
+Therefore in a running system the `pending` directory contents and the Gearman
+queues should always be in sync.
+
+==== Queue processing
+
+One or more `dsv-worker` processes should always be running.
+They register with GearMan as potential consumers of jobs from
+all of the queues, and wait for GearMan to assign them jobs from the queues.
+
+NOTE: The packaged system uses http://supervisord.org/[`supervisor`]
+to manage worker processes.
+
+When the `dsv-import` cron job runs it
+
+. scans all the `incoming` directories and creates a hard link in `incoming/pending` to all C-DNS files in `incoming`,  and then
+. submits a job for each file to the `cdns-to-tsv` queue in GearMan.
+A similar process occurs for the `cdns-to-pcap` queue.
+
+GearMan notices the job waiting in the `cdns-to-tsv` queue and
+
+. Assigns it to the first available `dsv-worker` process. Since this is a `cdns-to-tsv` job
+the `dsv-worker` hands processing off to `dsv-cdns-to-tsv` which in turn
+calls `/usr/bin/inspector` to do the actual conversion.
+. On successful conversion the hard link is removed and the job is removed from the
+`cdns-to-tsv` queue.
+. The resulting TSV file is added to the `import-tsv` queue.
+. The C-DNS file is then moved to the `cbor` directory.
+
+GearMan notices the job waiting in the `import-tsv` queue and
+
+. Assigns it to the first available `dsv-worker` process. Since this is a `import-tsv` job the
+`dsv-worker` hands processing off to `dsv-import-tsv` which uses
+`/usr/bin/clickhouse-client` to insert the data into the ClickHouse database.
+
+NOTE: Visualizer also reads `dsv.filter` to allow fine grained control of node processing.
+See the manual page for `dsv-import` for details.
+
+==== Job processing
+
+A `dsv-worker` process executes a job by running an executable named after the queue
+(e.g. items from the `cdns-to-tsv` queue are passed to `dsv-cdns-to-tsv`) and
+passing the filename (which will be the hard link from the `pending` directory) as the argument.
+The `dsv-worker` process then monitors the script exit status.
+The following statuses are recognised:
+
+.Queue job exit statuses
+[cols=".^1,.<6",options="header"]
+|===
+| Status | Action
+| 0
+| Success. The input file is deleted.
+| 1
+| Job failure.
+
+  The input file processing failed. The failed input file is moved
+  to a directory `error-<queue-name>` under the
+  node directory in the import file hierarchy, and the failure (with stdout and
+  stderr from the process) logged.
+| 2
+| Transient job failure.
+
+  The input file processing failed for reasons that may be
+  transient. If the job has already been retried a number
+  of times (by default 5), the job is treated as failed and processed as for exit
+  code 1. Otherwise the failure is logged and the job is re-entered
+  into the queue. The worker then sleeps for a short time (by default 5 seconds) before
+  accepting another queued job, thus (hopefully) getting the job processed by
+  another worker, in case the reason for the failure was due to a resource limitation
+  peculiar to that worker.
+| Other value, by convention 99
+| Job failure due to infrastructure reasons.
+
+  The job failed because some required infrastructure was not present. For
+  example a required program is not installed.
+  The job is left on the queue, and the worker exits, logging the
+  reason for failure.
+|===
+
+So looking at the content of the `error-*` directories can indicate the state
+of the system.
+
+==== Queue persistency
+
+Visualizer uses non-persistent Gearman queues for all queues. The
+rationale for using this approach rather than GearMan persistent queues is to
+allow operator intervention for file processing management in the event of problems.
+
+With non-persistent queues if the GearMan server is stopped or restarted, all
+queue entries in Gearman are lost. However because Visualizer uses the `pending`
+workspace to track the files to be processed, this means that when Gearman is
+stopped, the contents of the `pending` workspace act as a persistent record of
+the queue contents.
+
+Individual files can then be added/removed to the `pending` workspace by
+manipulating the hard links or TSV files.
+
+When ready to resume the import, the Gearman queues can be recreated
+('reloaded') from the `pending` workspace contents by manually running
+the `dsv-import` command with the correct flags, e.g.:
+
+[source,shell-session]
+----
+dsv-import -s pending
+----
+
+Alternatively operators can decide to not reload the queues but recover in another way.
+
+NOTE: You may want to consider automatically reloading GearMan queues
+when GearMan restarts, for example after a reboot. In the packaged system
+this can be done by creating `/etc/systemd/system/gearman-job-server.service.d`
+containing:
+----
+[Service]
+ExecStartPost=/usr/bin/dsv-import -s pending
+----
+
+==== Balancing work between worker processes
+
+GearMan allows one of three priority levels (High, Normal, Low) to be assigned
+to each job. Higher priority jobs are taken from the queue for processing
+before lower priority jobs.
+
+Currently Visualizer submits all jobs with Normal priority, with one exception:
+re-importing C-DNS files from the `cbor` directory. Such jobs re-converting old
+archives are submitted at Low priority; it is assumed that any processing of fresh
+incoming data (i.e. _live_ data) should take priority.
+
+`dsv-worker` processes by default register to process jobs from any queue.
+When a process registers to process multiple queues, GearMan retrieves
+jobs from the last registered queue first. The order in which queues are registered
+is set in configuration; by default, it is `cdns-to-pcap`, `cdns-to-tsv` and
+`import-tsv`. Jobs from `import-tsv` are therefore processed first, then
+`cdns-to-tsv` and finally `cdns-to-pcap`.
+
+NOTE: In general, conversion from C-DNS to either PCAP or TSV takes much longer than
+import into ClickHouse, so the above ordering is a reasonable default.
+
+In a high-traffic environment where a datastore is running lots of worker processes,
+it has been found it can be advantageous to reserve a small number of workers
+for import only, to ensure imports keep flowing. Otherwise all workers can
+be doing conversion, and TSV for import can be kept waiting until a worker
+finishes conversion. With large C-DNS files, this can result in a wait of minutes.
+It is possible to arrange for some `dsv-worker` processes to be started with a
+list of queues they are to ignore:
+
+[source,console]
+----
+$ dsv-worker --ignore-queue cdns-to-tsv --ignore-queue cdns-to-pcap
+----

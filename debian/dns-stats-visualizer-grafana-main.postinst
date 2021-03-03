@@ -1,0 +1,36 @@
+#!/bin/sh
+
+
+if [ "$1" = "configure" ]; then
+    if [ -f /etc/grafana/provisioning/dashboards/main-site.yml ]; then
+        chgrp grafana /etc/grafana/provisioning/dashboards/main-site.yml
+        chmod 0640 /etc/grafana/provisioning/dashboards/main-site.yml
+    fi
+    if [ -f /etc/grafana/provisioning/datasources/dsv-main.yml.sample ]; then
+        chgrp grafana /etc/grafana/provisioning/datasources/dsv-main.yml.sample
+        chmod 0640 /etc/grafana/provisioning/datasources/dsv-main.yml.sample
+    fi
+
+    # Ensure required plugins are installed, and update to latest version
+    # if already installed.
+    plugins_before=$(mktemp -t "plugins-before.XXXXXX")
+    plugins_after=$(mktemp -t "plugins-before.XXXXXX")
+    grafana-cli plugins ls > $plugins_before
+    for plugin in vertamedia-clickhouse-datasource grafana-image-renderer grafana-worldmap-panel
+    do
+        if ! grep $plugin $plugins_before > /dev/null; then
+            grafana-cli plugins install $plugin > /dev/null
+        else
+            grafana-cli plugins update $plugin > /dev/null
+        fi
+    done
+    grafana-cli plugins ls > $plugins_after
+    if ! cmp -s $plugins_before $plugins_after; then
+        systemctl restart grafana-server
+    fi
+    rm -f $plugins_before $plugins_after
+fi
+
+#DEBHELPER#
+
+exit 0

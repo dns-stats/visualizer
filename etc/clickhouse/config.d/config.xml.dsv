@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<yandex>
+    <!-- Listen specified host. use :: (wildcard IPv6 address), if you want to accept connections both with IPv4 and IPv6 from everywhere. -->
+    <listen_host remove="remove" />
+    <listen_host>::</listen_host>
+    <logger>
+        <level>notice</level>
+        <log>/var/log/clickhouse-server/clickhouse-server.log</log>
+        <errorlog>/var/log/clickhouse-server/clickhouse-server.err.log</errorlog>
+        <size>1000M</size>
+        <count>10</count>
+    </logger>
+    <!-- Server time zone could be set here.
+
+         Time zone is used when converting between String and DateTime types,
+          when printing DateTime in text formats and parsing DateTime from text,
+          it is used in date and time related functions, if specific time zone was not passed as an argument.
+
+         Time zone is specified as identifier from IANA time zone database, like UTC or Africa/Abidjan.
+         If not specified, system time zone at server startup is used.
+    -->
+    <timezone>UTC</timezone>
+
+    <!-- When dictionary config files in /etc/clickhouse-server get -->
+    <!-- preprocessed, something goes wrong and non-dictionary info -->
+    <!-- gets included in the preprocessed directionary file inside -->
+    <!-- the <dictionaries> tag. This causes the config parser to -->
+    <!-- complain mightily; it doesn't stop things working, but does -->
+    <!-- pollute the logs and confuse you when looking for a startup -->
+    <!-- error. If we move them all into their own directory, this -->
+    <!-- doesn't happen, which seems a Good Thing. -->
+    <dictionaries_config>dictionaries.d/*.xml</dictionaries_config>
+</yandex>

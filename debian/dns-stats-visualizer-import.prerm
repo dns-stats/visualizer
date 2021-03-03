@@ -1,0 +1,9 @@
+#!/bin/sh
+
+if [ -x /usr/bin/supervisorctl ]; then
+        /usr/bin/supervisorctl stop all
+fi
+
+#DEBHELPER#
+
+exit 0

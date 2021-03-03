@@ -1,0 +1,66 @@
+#!/bin/bash
+#
+# Copyright 2020, 2021 Internet Corporation for Assigned Names and Numbers.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, you can obtain one at https://mozilla.org/MPL/2.0/.
+#
+# Developed by Sinodun IT (sinodun.com)
+#
+# dsv-import-mirror <target root> <server/node pattern> [<server/node pattern> ...]
+#
+# This is a continuously running server process. It creates a
+# parallel copy of datastore incoming directories under
+# directory <target_root>. New data files created under
+# the datastore for hosts that match the hostname pattern get
+# a hard link to the file created in a matching directory in the
+# target root.
+#
+# A periodic rsync on a receiving host can then copy these files
+# to a mirror. E.g.
+#
+# rsync --archive --chmod=g+w --remove-source-files --rsh="ssh -i ~/.ssh/cbor.rsa" <datastore host>:<mirror dir>/ <datastore base dir>
+#
+# Exit codes: 0 = success, 1 = error, 99 = missing pre-requisite.
+#
+
+#set -x
+
+for cmd in inotifywait dsv-config
+do
+    command -v $cmd > /dev/null 2>&1 || { echo "No $cmd." >&2; exit 99; }
+done
+
+if [[ $# -lt 2 ]]; then
+    echo "Usage: dsv-import-mirror <target root> <hostname pattern> [<hostname pattern> ...]" 1>&2
+    exit 1
+fi
+
+FROMROOT=$(dsv-config datastore path)
+if [[ $? -ne 0 ]]; then
+    echo "No datastore path configured." 1>&2
+    exit 99
+fi
+
+TOROOT=$1
+shift
+
+DSDIRS=""
+for pat in "$@"
+do
+    DSDIRS="$DSDIRS $pat/incoming"
+done
+
+cd $FROMROOT
+
+inotifywait -m -q -e moved_to --format "%w%f" $DSDIRS | while read f; do
+    mkdir -p $TOROOT/$(dirname $f)
+    ln $f $TOROOT/$f
+done
+
+exit 0
+
+# Local Variables:
+# mode: sh
+# End:

@@ -1,0 +1,23 @@
+= dsv-datastore-setup(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-datastore-setup - create Visualizer user and Postgres access on the host
+
+== SYNOPSIS
+
+*dsv-datastore-setup*
+
+== DESCRIPTION
+
+If no system user `dsv` exists, create one as a system user with disabled login.
+
+Then create a Postgres user `dsv` and a Postgres database `dsv`.
+
+== EXIT STATUS
+
+0 on success, non-zero on any error.

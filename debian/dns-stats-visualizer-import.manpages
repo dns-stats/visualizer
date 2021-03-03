@@ -1,0 +1,15 @@
+doc/man/man1/dsv-find-node-id.1
+doc/man/man1/dsv-geo-update.1
+doc/man/man1/dsv-import.1
+doc/man/man1/dsv-import-freeze.1
+doc/man/man1/dsv-import-thaw.1
+doc/man/man1/dsv-nodes-update.1
+doc/man/man1/dsv-datastore-setup.1
+doc/man/man1/dsv-postgres-update.1
+doc/man/man1/dsv-prune.1
+doc/man/man1/dsv-queue-freeze.1
+doc/man/man1/dsv-queue-thaw.1
+doc/man/man1/dsv-rssac-reports.1
+doc/man/man1/dsv-status.1
+doc/man/man1/dsv-tld-update.1
+doc/man/man1/dsv-worker.1

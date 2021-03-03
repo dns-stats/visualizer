@@ -1,0 +1,61 @@
+= dsv-postgres-update(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-postgres-update - update Visualizer Postgres schema on the host
+
+== SYNOPSIS
+
+*dsv-postgres-update* [_OPTION_]... [_DIRECTORY_]
+
+== DESCRIPTION
+
+Given a directory containing numbered DDL files, manage the ClickHouse schema status.
+The command can be used to display the current schema status, apply any schema
+updates, or roll back the last installed schema update. The DDL directory defaults to
+`/usr/share/dns-stats-visualizer/sql/postgres/ddl`, the standard install location
+for Visualizer Postgres DDL files.
+
+`dsv-postgres-update` first queries a table `dsv.ddl_history` to
+determine the highest numbered DDL currently applied. If this table is not found,
+`schema.sql` from the DDL directory is applied to create the table.
+
+The directory is then scanned for all files named `<number>.sql`. Any with a number
+higher than the topmost version recorded as applied as considered as
+available updates.
+
+Three actions are then available:
+
+*update*::
+  Apply all DDL files that are not currently applied. This is the default action.
+
+*rollback*::
+  Find version number of the highest DDL currently applied, and check to see if a file
+  `<number>-rollback.sql` is present. If so, apply that file and mark that version
+  as no longer applied.
+
+*status*::
+  Report which DDLs are applied and when they were applied. Also report on any
+  available unapplied DDLs that will be applied during an update.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+*-a, --action* [_arg_]::
+  Which action to perform. Options are *update* (default), *rollback* or *status*.
+*-v, --verbose*::
+  Report all DDL actions. When reporting status, report on any rollbacks too.
+*-n, --dry-run*::
+  Report as if applying any update or rollback, but do not actually apply the change.
+*-r, --update-required*::
+  Check to see whether unapplied DDL updates are available.
+
+== EXIT STATUS
+
+0 on success, non-zero on any error. If checking for unapplied updates, 0 if
+all updates are applied, 1 if there are outstanding unapplied updates, 2 on error.

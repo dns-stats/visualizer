@@ -1,0 +1,206 @@
+== Customising an installation
+
+This section covers installation from a more general view;
+it is aimed at the practiced administrator who wants to know how
+a Visualizer install can be adapted to a configuration appropriate to their
+requirements and local policies. It should be read in conjunction with the
+Overview and Basic Installation document.
+
+=== Visualizer configuration file
+
+Datastore and ClickHouse hosts all require the Visualizer configuration
+`/etc/dns-stats-visualizer/dsv.cfg`. You may also want to
+accompany this with `/etc/dns-stats-visualizer/private.cfg`
+with restricted access rights. See <<_configuration_file>>.
+
+It is recommended that the same configuration files are installed on all
+datastore and ClickHouse hosts.
+
+=== Datastore host installation
+
+==== Pre-requisites
+
+A datastore host requires the following pre-requisite components:
+
+. The ClickHouse command line client.
+. GearMan job server.
+. DNS-STATS inspector.
+. Python3 PostgreSQL and GearMan libraries.
+. MaxMind database library and `geoipupdate` utility.
+
+In addition, at least one datastore host must have a
+PostgreSQL installed.
+
+ClickHouse and DNS-STATS inspector require separate package archives
+on Ubuntu Bionic.
+
+The `dns-stats-visualizer-import` package installs the listed pre-requisites
+and all Visualizer components for a datastore. As not every every datastore
+needs a PostgreSQL server installed, the PostgreSQL server is *not* a package
+pre-requisite.
+
+==== Configurable items
+
+By default C-DNS files are configured to be held under
+`/var/lib/dns-stats-visualizer/cdns`, which on install
+is owned by `root`. Default configuration, however, assumes
+the files will be owned by a user `dsv`. The filestore location
+and owning user are both configurable.
+
+Worker processes and any command that freezes or thaws
+queue processing will attempt to set their UID/GID to the owning user.
+In practice, then:
+
+* Queue worker processes need to be configured to be run as the owning user.
+* `dsv-import` can be run by any user that has write permission
+  on the filestore. It is strongly recommended, though, that it is always
+  run as the owning user.
+
+The PostgreSQL user is by default configured as `dsv`. You can configure
+an alternate username for PostgreSQL, but you can't change the PostgreSQL
+database name. This has to be `dsv`. It must be possible for the configured
+PostgreSQL user to access the PostgreSQL `dsv` database as the configured
+user with the configured password from the local host and
+all Visualizer ClickHouse hosts.
+
+===== PostgreSQL server
+
+If more than one datastore is configured in a Visualizer system, it is
+not strictly necessary to install PostgreSQL on each datastore,
+and to just use a single PostgreSQL on one datastore.
+In that case, you will need to either restrict running all commands that
+update PostgreSQL tables to the datastore running the PostgreSQL server
+or to specify in the configuration file the
+host to which PostgreSQL connections should be made.
+
+Alternatively, you can configure a PostgreSQL server on each datastore, and
+configure PostgreSQL replication from the designated master.
+Again, commands updating PostgreSQL can only be successfully run on the
+designated master, but the default configuration will work for other cases.
+This will allow different ClickHouse hosts to have their ODBC connection
+configured to access different datastores. The volume of PostgreSQL
+traffic to datastores is not generally significant, but this does allow
+the possibility of spreading that load if it does become significant.
+
+=== ClickHouse host installation
+
+==== Pre-requisites
+
+A ClickHouse host requires the following pre-requisite components:
+
+. The ClickHouse server and command line client.
+. ODBC access to PostgreSQL.
+
+ClickHouse requires separate package archives on Ubuntu Bionic.
+
+The `dns-stats-visualizer-clickhouse` package installs the above
+and all Visualizer components for a ClickHouse host.
+
+==== Configurable items
+
+===== ClickHouse
+
+The `dns-stats-visualizer-clickhouse` package includes sample
+ClickHouse configuration files. These declare:
+
+* A single-host ClickHouse cluster named `dsv`.
+* Two ClickHouse users, both with access from any network address.
+** `dsv`. Read/write access, used by datastore to add data to ClickHouse.
+** `dsv_main`.  Read-only access, used by Grafana hosts to query data.
+* A generous memory limit for a single query.
+* `zstd` compression on data storage.
+* Logging location.
+* UTC server timezone.
+* Dictionary definitions for the dictionaries using PostgreSQL data.
+
+The sample configuration files are designed for use with minimal
+change in the walk-though in the installation manual.
+The items therein do not necessarily have to appear in a production ClickHouse configuration.
+The items that *must* be configured for all ClickHouse
+servers used in Visualizer are:
+
+* There must be a cluster named `dsv`.
+* UTC server timezone. For various reasons, not least ease of distribution,
+  the Python ClickHouse driver used in Visualizer is modified from the
+  standard version. The modified version only supports servers with
+  UTC timezone.
+* The dictionary definitions that the install places
+  under `/etc/clickhouse-server/dictionaries.d` must be loaded.
+* A ClickHouse user datastores can use for adding new data.
+* A ClickHouse user Grafana can use for querying.
+
+It is expected that production ClickHouse installations will frequently be multi-host
+clusters. All the tables used by other parts of Visualizer therefore use the
+ClickHouse Distributed table engine, configured with a cluster name `dsv`.
+
+The details of how a cluster is configured, what shard replication is used, if any,
+and so on are matters for the ClickHouse administrator.
+
+===== ClickHouse cluster data distribution
+
+When running Visualizer with a ClickHouse cluster, the question of how data is
+distributed across the cluster is important. This section outlines the approach taken
+in Visualizer, and should be read in conjunction with the
+https://clickhouse.tech/docs/en/engines/table-engines/special/distributed/[ClickHouse documentation].
+
+All Visualizer tables are created as a local table for the individual cluster host with a name
+ending `Shard`. These are collected into cluster-wide tables using the `Distributed` table
+engine.
+
+The core assumptions in Visualizer with regard to clustering are:
+
+* All cluster hosts are of similar specification.
+* There is no operational reason to prefer one cluster host over another when
+  storing data for a particular node.
+
+Given these assumptions, therefore, for tables where data is being
+added from external sources, Visualizer specifies a sharding key
+`rand()`, distributing data evenly across the cluster. To accomodate clusters
+with hosts of differing storage capacity, the weights assigned to the cluster hosts
+can be varied as decribed in the ClickHouse documentation.
+
+On the basis of our operational experience, `dsv-import-tsv` also sets the
+https://clickhouse.tech/docs/en/operations/settings/settings/#insert_distributed_sync[ClickHouse flag `insert_distributed_sync`] to 1 when inserting raw data.
+This ensures that the INSERT does not complete until all shards are updated.
+This will serve to highlight problems with inter-shard communication in the cluster,
+and keep the queue backlog visible in Visualizer.
+
+===== ODBC
+
+The sample `/etc/odbc.ini` file will need the following items set
+to match Visualizer configuration:
+
+* The PostgreSQL datastore hostname.
+* The PostgreSQL user.
+* The PostgreSQL password.
+
+=== Grafana host installation
+
+==== Pre-requisites
+
+A Grafana host requires the following pre-requisite components:
+
+. Grafana server.
+
+It is strongly recommended to use the separate package archives published by
+Grafana on Ubuntu Bionic.
+
+The `dns-stats-visualizer-grafana-main` package installs the above
+and all Visualizer components for a Grafana host serving the example
+production Grafana dashboards.
+
+==== Configurable items
+
+Apart from the items noted in the install walkthrough, no other Grafana
+configuration options need to be changed.
+
+===== Changing the Organisation Name
+
+You can create new organisation names in Grafana.
+However the provisioned dashboards reference organisations by ID not name.
+If you only need one organisation then the simplest solution is to rename `Main.org`.
+
+If you do this on the main dashboard then you also need to edit
+`/etc/grafana/grafana.ini` and set `[auth.anonymous] org_name` to the
+new organisation name.
+Then restart Grafana.

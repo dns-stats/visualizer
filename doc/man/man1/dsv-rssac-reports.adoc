@@ -1,0 +1,63 @@
+= dsv-rssac-reports(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-rssac-reports - generate RSSAC reports for a date
+
+== SYNOPSIS
+
+*dsv-rssac-reports* [_OPTION_]...
+
+== DESCRIPTION
+
+Generate the RSSAC reports for a given date. You can choose to generate
+individual reports, or to generate only plots or YAML.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+*--date* [_arg_]::
+  The date for which to generate reports. The date is specified as YYYY-MM-DD.
+  Default is 7 days before the current date.
+
+*--output-dir* [_arg_]::
+  The base directory for the output files. Default is the current directory.
+
+*-r, --report* [_arg_]::
+  The report to generate. The options are `load-time`, `rcode-volume`,
+  `traffic-sizes`, `traffic-volume`, `unique-sources`, `zone-size`
+  or `all`, which generates all available reports. Required value.
+
+*-s, --server* [_arg_]::
+  The server for which to generate reports. Required value.
+
+*--report-server-name* [_arg_]::
+  The service name to put into the RSSAC YAML reports.
+  Defaults to the given server name, lowercased.
+
+*--report-file-prefix* [_arg_]::
+  The prefix for the RSSAC report output filenames.
+  Defaults to the given server name, lowercased.
+
+*---no-plots*::
+  Do not generate the plots.
+
+*---no-yaml*::
+  Do not generate the YAML reports.
+
+*---no-cert-check*::
+  Do not check the hostname in the certificate for HTTPS connections.
+
+== EXIT STATUS
+
+Non-zero on any error, or if any YAML report is missing data.
+
+== SEE ALSO
+
+link:dsv.cfg.adoc[dsv.cfg].

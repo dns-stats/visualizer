@@ -1,0 +1,26 @@
+<dictionaries>
+  <comment>Server address metadata</comment>
+  <dictionary>
+    <name>server_address</name>
+    <source>
+      <odbc>
+        <connection_string>DSN=dsv</connection_string>
+        <table>server_address</table>
+      </odbc>
+    </source>
+    <lifetime>300</lifetime>
+    <layout>
+      <flat/>
+    </layout>
+    <structure>
+      <id>
+        <name>id</name>
+      </id>
+      <attribute>
+        <name>address</name>
+        <type>String</type>
+        <null_value>Unknown</null_value>
+      </attribute>
+    </structure>
+  </dictionary>
+</dictionaries>

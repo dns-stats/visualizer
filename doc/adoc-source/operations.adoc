@@ -1,0 +1,416 @@
+== Operation
+
+=== dsv Tools
+
+Visualizer comes with a set of commands providing tools to manage and operate the system.
+
+Details of each command are given below. Details of how to set up cron jobs for
+ongoing operation of the system are given later in this section.
+
+All Visualizer commands have a name beginning `dsv-` and are documented with
+with manual pages. e.g.:
+
+[source,console]
+----
+$ man dsv-import
+----
+
+In (nearly) all cases, they may also be run using the `dsv` command:
+
+[source,console]
+----
+$ dsv import
+----
+
+Many commands are useful only on particular Visualizer hosts; for example,
+commands affecting on queue processing are only relevant to the Datastore host,
+and a package install will only install them there. Some commands must be run by the `dsv` user.
+
+Running `dsv` on its own will display the list of commands available on the host.
+(The list below includes only the commands installed in the default installation.)
+
+==== Command list
+
+.Visualiser Datastore host commands
+[cols="1a,3a"]
+|===
+| `dsv-datastore-setup`
+| Initial basic configuration of a new datastore host.
+
+| `dsv-find-node-id`
+| Given a server name and a node name, find the internal ID of the node. For script use.
+
+| `dsv-geo-update`
+| Download the latest MaxMind GeoLite2 database and update the ClickHouse location table.
+
+| `dsv-import`
+| Scan the filestore and add new jobs to the processing queue.
+
+| `dsv-import-freeze`
+| Freeze processing of all imports. Jobs in the queues will continue to be processed, but
+  `dsv-import` will not add any more until imports are thawed.
+
+| `dsv-import-thaw`
+| Thaw processing of all imports.
+
+| `dsv-nodes-update`
+| Read a CSV file describing the nodes and update the node list.
+
+| `dsv-postgres-update`
+| Update the PostgreSQL schema on a PostgreSQL host.
+
+| `dsv-prune`
+| Report ClickHouse disc usage and optionally delete old ClickHouse data partitions.
+
+| `dsv-queue-details`
+| Report per-node counts for for import queues.
+
+| `dsv-queue-freeze`
+| Freeze processing of a named job queue. Current jobs will complete, but no further
+  jobs from the queue will be processed until the queue is thawed.
+
+| `dsv-queue-thaw`
+| Thaw processing of a named job queue.
+
+| `dsv-status`
+| Report on the status of the job queues.
+
+| `dsv-tld-update`
+| Download information on top level domains (TLDs) from the IANA website and update
+  the Visualizer TLD info tables.
+
+| `dsv-worker`
+| Execute jobs on Visualizer job queues.
+|===
+
+.Visualiser ClickHouse host commands
+[cols="1a,3a"]
+|===
+| `dsv-clickhouse-update`
+| Update the ClickHouse schema on a ClickHouse host.
+|===
+
+Note - the `dsv-clickhouse-sys-info` command available on the ClickHouse host reports information on a ClickHouse
+system. This is used as a backend to a ClickHouse dictionary; it is not for user use.
+
+.Visualiser commands available on all hosts
+[cols="1a,3a"]
+|===
+| `dsv-config`
+| Retrieve Visualizer conflguration items for e.g. external script use.
+
+| `dsv-log`
+| Write a Visualizer log message. For e.g. script usage.
+|===
+
+
+=== Specifying node details
+
+The nameservers recording DNS traffic are known individually as _nodes_.
+They are grouped by:
+
+* _Instance_. Nodes at the same geographic location form a single instance.
+* _City_. The city where the instance is located.
+* _Country_. The country containing the city.
+* _Region_. The region containing the country.
+* _Server_. The DNS service provided. Organisations may provide more than one DNS
+   service; this enables services to be distinguished, and is the highest level grouping.
+
+Visualizer needs to know the details of each node that will be uploading data.
+Node details are held in PostgreSQL on the datastore and made available to ClickHouse.
+
+The approach taken to maintenance of node details in Visualizer is to keep
+node information in a comma-separated (CSV) file, with one line per node.
+A sample file is installed in `/etc/dns-stats-visualizer/nodes.csv.sample`.
+The utility `dsv-nodes-update` reads the CSV file and updates PostgreSQL.
+
+When reading lines from the CSV files, all content at and after `#` in a line
+is discarded, also any leading or trailing space in the line is also discarded.
+Any empty lines are also ignored.
+
+Each remaining input line must contain between 6 and 8 fields inclusive. The fields
+are, in order:
+
+.Node details CSV fields
+[cols="1,3a"]
+|===
+| Server name
+| The name of the server this node belongs to.
+
+| Node name
+| The name of the node.
+
+| Region name
+| The name of the region the node is sited in.
+
+| Country
+| The name of the country the node is sited in.
+
+| City
+| The name of the city the node is sited in.
+
+| Instance name
+| The name of the instance to which the node belongs.
+
+| Service address
+| (Optional) An IP address which can be used for that particular node. This is used in the optional
+RSSAC reporting module to examine responses from individual nodes. If omitted,
+the default is no address.
+
+| Visibility
+| (Optional) The node dashboard visibility. This is one of 4 values:
+[cols="1,3a"]
+!===
+!all
+!Node data is included on all dashboards. This is the default if no value is given.
+
+!test
+!Node data is included only on test dashboards, but not on main dashboards.
+
+!main
+!Node data is included only on main dashboards, but not on test dashboards.
+
+!none
+!No data for this node is included on any dashboards.
+!===
+|===
+
+NOTE: Server, node and instance names can contain only alphanumeric characters.
+
+==== Alternate names
+
+_Server_ and _Node_ name fields may include an optional alternate name which will also be
+recognised as belonging to that node. The alternate name is given after the primary name, separated
+by `|`. Grafana will always display the primary name, but the alternate name is also
+recognised when processing input files from disk. This can be useful when re-naming nodes.
+
+==== Processing order
+
+Rows from the input file are processed in sequence. If any row contains the same
+server or node name as a previous row, the server or node data will be updated
+to the value in the row, and the values in the previous row will be discarded.
+If supplying alternate names for a server, therefore, the alternate name must appear
+in the last record containing the server. To avoid confusion, it is recommended to specify the
+alternate name for all lines containing the server.
+
+==== Example `nodes.csv`
+
+----
+# Sample nodes.csv file.
+# server, node,      region,        country,  instance, city
+MyTLD,    ns1,       Europe,        GB,       Lon1,     London
+MyTLD,    ns2|oldns, Europe,        GB,       Lon1,     London #oldns still used for file upload
+MyTLD,    ns3,       North America, US,       Wash1,    Washington
+----
+
+To import nodes into the database after making edits to the `nodes.csv` file use
+[source,console]
+----
+$ dsv-nodes-update -c /etc/dns-stats-visualizer/dsv.cfg /etc/dns-stats-visualizer/nodes.csv
+----
+
+=== Specifying server addresses for the Server IP graph
+
+The `Server IP address` graph displays the traffic activity on each IP address
+for the server. You can filter the displayed addresses to a fixed list by
+populating the `server_address` table in the PostgreSQL `dsv` database as below.
+This can remove noise from the graph generated by outgoing queries from the server
+that are also captured in the C-DNS file.
+[source,console]
+----
+$ psql -d dsv -U dsv
+dsv=> INSERT INTO server_address (address) VALUES
+  ('2001:500:9f::42'),
+  ('::ffff:199.7.83.42');
+----
+
+
+=== Automatically scheduled jobs
+
+After Visualizer is installed, there are some Visualizer functions that need to be run
+regularly. It is suggested that this is done using `cron(8)`.
+
+NOTE: Each should run as the `dsv`
+user, so if using `cron` add the details to the `crontab` for user `dsv`.
+
+==== Periodic import of new C-DNS files
+
+Visualizer expects C-DNS files recorded on the nodes to appear in a file hierarchy
+under directory `<Server>/<Node>/incoming`. Those directories need to be scanned
+periodically and new files added to the Visualizer queues for processing. This is done
+with the command:
+
+[source,console]
+----
+$ dsv-import --source incoming
+----
+
+A reasonable interval is to run this command every 5 minutes via a `crontab` entry:
+
+----
+# m h  dom mon dow   command
+*/5 * * * * /usr/bin/dsv-import --source incoming
+----
+
+==== Recording Visualizer queue details
+
+The command `dsv-queue-details` reports on the number of jobs waiting in each
+Visualizer queue and the number of errors (job failures) for each queue.
+
+The command can optionally record this data to ClickHouse for archive and system
+performance analysis. If you find this useful, you may want to consider recording the
+queue status periodically. To record it evert 5 minutes:
+
+----
+# m h  dom mon dow   command
+*/5 * * * * /usr/bin/dsv-queue-details --store
+----
+
+==== Updating Top Level Domain (TLD) information
+
+The default Visualizer installation includes a dashboard _QTYPE for Undelegated TLD_
+which relies for TLD classification in data in a PostgreSQL table `tld_text`.
+
+TLD data changes periodically as new TLDs are added, or old ones removed.
+The data in this table can be kept up to date by running the command `dsv-tld-update`.
+You may want to consider running this regularly, perhaps weekly.
+This `crontab` entry runs it every Sunday at 02:00.
+
+----
+# m h  dom mon dow   command
+0 2 * * 0 /usr/bin/dsv-tld-update
+----
+
+==== Updating GeoLocation information
+
+The default Visualizer installation includes dashboards displaying country and city
+origins of client queries. To enable this, the data import process uses MaxMind
+GeoLite data to add a geographic location identifier to each raw query/response
+record imported into ClickHouse.
+The Grafana dashboards then rely on a table recording the latitude and longitude
+for each location identifier.
+
+Keeping this up to date requires periodically updating two different items:
+
+. The MaxMind GeoLite database associating client IP addresses with locations.
+  This is updated with the MaxMind `geoipupdate` command. On Ubuntu, this
+  must be run as `root`.
+. The table used by Grafana queries to map location ID to latitude/longitude.
+
+It is suggested updating the geolocation data weekly:
+
+. Add the following to the `root` crontab to download fresh data from MaxMind
+  at 03:00 every Sunday (see the `geoipupdate` manual page):
++
+----
+# m h  dom mon dow   command
+0 3 * * 0 /usr/bin/geoipupdate
+----
+
+. Add the following to the `dsv` crontab to download fresh data from MaxMind
+  and update the database table used by Grafana also at 03:00 every Sunday.
++
+----
+# m h  dom mon dow   command
+0 3 * * 0 /usr/bin/dsv-geo-update
+----
+
+=== Generating PCAPs and import of archived data
+
+C-DNS files can be converted (in a lossy fashion) into PCAP files using the
+`dsv-worker` command. This might be done as a 'background' job in order to share
+data - Visualizer provides an option to anonymize such PCAPs. Details are provided in
+<<Appendix C: Generating PCAP files>>
+
+
+It is also possible with Visualizer to import previously processed data from the
+`cbor` directory into the database, in the event the database must be rebuilt.
+Details are provided in <<Appendix A: Importing archived data>>
+
+=== Pruning
+
+Over time, query/response data accumulates in a Visualizer system in two places:
+
+. *Datastore C-DNS files.* Once queued for processing, C-DNS files are moved to per-node
+ `cbor` directories on the datastore.
+. *ClickHouse tables.* Raw query/response data is stored in ClickHouse in the main raw table
+  and summarised in the various aggregation tables.
+
+Over time, installations will not to manage the ever-increasing storage requirement,
+discarding old data. Visualizer refers to this process as _pruning_.
+
+Pruning can be either an _ad-hoc_ process, carried out manually whenever storage
+utilization passes a threshold, or the same procedures can be run automatically on
+a regular basis.
+
+==== Datastore C-DNS files
+
+Visualizer does not provide any standard mechanism for deleting old files from the datastore.
+Once C-DNS files are imported and moved to `cbor` node directories, Visualizer makes no
+further use of them.
+
+They may therefore be managed by standard system utilities. For example, this command
+uses `find(1)` to identify and remove candidate C-DNS files:
+
+[source,console]
+----
+$ find /var/lib/dns-stats-visalizer/cdns -mtime +20 -type f -path **/*.cdns** -exec rm '{}' \;
+----
+
+It will remove all C-DNS files in `cbor` directoriess and over 20 days old from the datastore
+at `/var/lib/dns-stats-visualizer/cdns`.
+
+==== ClickHouse tables
+
+===== Table sizes
+
+The storage required for the ClickHouse tables will obviously depend on the traffic content and
+volumes, and how successful the aggregations are.
+
+Purely as a guide, we give figures for a busy Root server that sees 17 billion
+queries per day (~200 kqps). ClickHouse uses around 580 Gb daily to store the raw data,
+and around 15Gb daily for the 5 minute aggregated data.
+
+===== Table partitions
+
+A characteristic of the ClickHouse database is that it cannot delete _individual_
+records from its tables. However, all data added to Vizualizer tables is added to
+'partioned' tables, and in those tables ClickHouse can delete _partitions_.
+
+In a typical Visualizer installation, the size of the raw query/response data table is
+considerably (i.e. order or orders of magnitude) larger than the aggregated tables.
+It is therefore desirable to be able to set different age thresholds for raw and
+aggregated data.
+
+By default, ClickHouse partitions table data into monthly partitions.
+Our experience with a large data volume installation is that this is too coarse;
+the volumes of each individual partition can be too significant a fraction of the
+total available storage for best operational flexibility.
+For this reason, Visualiser specifies weekly partitions when creating its tables.
+It is recommended that you consider the question of partition size, given your likely
+volumes and available storage.
+
+===== `dsv-prune`
+
+For convenience, and to ensure consistency between different hosts in a
+ClickHouse cluster that uses multiple hosts, pruning ClickHouse Visualizer
+tables is done with the `dsv-prune` command. This command is run from the
+datastore, and by default reports the current disc utilisation.
+
+If the utilisation exceeds a threshold (default 80%), you can specify that
+partitions older than a given number of days old should be deleted (default is
+365 days). It deals with either raw or aggregated data separately, so you can
+adjust usage threshold and age values to the two types of data separately. We
+recommend always using the `--dry-run` flag when running manually to get a preview
+of what data will be deleted.
+
+[source,console]
+----
+$ dsv-prune -t 70 -d raw -a 30
+$ dsv-prune -t 70 -d 5min -a 150
+----
+
+Once you are happy with your parameters, this can also be run periodically from
+cron to control disk usage on the system. In this case the `--force` flag must be used,
+to override the user confirmation `dsv-prune` normally requires before deleting
+a partition.

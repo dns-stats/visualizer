@@ -1,0 +1,126 @@
+#!/bin/bash
+#
+# Copyright 2018-2019, 2021 Internet Corporation for Assigned Names and Numbers.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, you can obtain one at https://mozilla.org/MPL/2.0/.
+#
+# Developed by Sinodun IT (sinodun.com)
+#
+# dsv-cdns-to-pcap <compressed C-DNS file>
+#
+# Convert a C-DNS file to a PCAP file in the current directory, or the
+# parent directory if the current directory is 'pending'.
+#
+# If the input file name ends '.xz', decompress first.
+#
+# The output PCAP may be compressed and may contain only queries, depending
+# on Visualizer configuration.
+#
+# On successful conversion, give exit code 0. Otherwise if anything goes
+# wrong with decompression and conversion, there doesn't seem any likelihood
+# it's going to be temporary, so fail with exit code 1. Finally,
+# if we're missing necessary required executables, that's an
+# infrastructure/setup error, so exit with error code 99.
+#
+# This script is stuffed with bash-isms. Sorry, but it does make life
+# much easier.
+
+#set -x
+
+for cmd in inspector xz cat dsv-config dsv-log
+do
+    command -v $cmd > /dev/null 2>&1 || { echo "No $cmd." >&2; exit 99; }
+done
+
+set -o pipefail
+
+INSPECTOR="inspector"
+XZ="xz --decompress --stdout"
+DSVLOG="dsv-log -l warning"
+
+COMPRESS_PCAP=$(dsv-config pcap compress)
+COMPRESS_PCAP_LEVEL=$(dsv-config pcap compression-level)
+REPLACE_PCAP=$(dsv-config pcap replace)
+QUERY_ONLY=$(dsv-config pcap query-only)
+ANONYMISE=$(dsv-config pcap pseudo-anonymise)
+ANON_KEY=$(dsv-config pcap pseudo-anonymisation-key)
+ANON_PASSPHRASE=$(dsv-config pcap pseudo-anonymisation-passphrase)
+
+declare -a INSPECTOR_ARGS
+if [[ "$COMPRESS_PCAP" ]]; then
+    INSPECTOR_ARGS+=(-x -u)
+    INSPECTOR_ARGS+=("$COMPRESS_PCAP_LEVEL")
+fi
+if [[ "$QUERY_ONLY" ]]; then
+    INSPECTOR_ARGS+=(-q)
+fi
+if [[ "$ANONYMISE" ]]; then
+    if [[ "$ANON_KEY" ]]; then
+        INSPECTOR_ARGS+=(-p -k)
+        INSPECTOR_ARGS+=("$ANON_KEY")
+    elif [[ "$ANON_PASSPHRASE" ]]; then
+        INSPECTOR_ARGS+=(-p -P)
+        INSPECTOR_ARGS+=("$ANON_PASSPHRASE")
+    fi
+fi
+
+usage()
+{
+    echo "Usage: dsv-cdns-to-pcap <C-DNS file>" 1>&2
+    exit 1
+}
+
+if [[ $# -ne 1 ]]; then
+    usage
+fi
+file=$1
+
+dir=$(dirname $file)
+dirname=$(basename $dir)
+if [[ "$dirname" = "pending" ]]; then
+    outdir=$(dirname $dir)
+else
+    outdir=$dir
+fi
+
+name=$(basename $file)
+basename=${name%.xz}
+
+error()
+{
+    if [[ -n $1 ]]; then
+        echo $1 1>&2
+    fi
+    rm -f $outdir/$basename.pcap*
+    exit 1
+}
+
+# If file does not exist it's been successfully dealt with.
+if [[ ! -f $file ]]; then
+    $DSVLOG "$file not found."
+    exit 0
+fi
+
+if [[ $name != $basename ]]; then
+    decomp=$XZ
+else
+    decomp=cat
+fi
+
+trap "error Interrupted" HUP INT TERM
+
+# Ensure if re-generating we don't end up with -1 etc. outputs but replace.
+if [[ "$REPLACE_PCAP" ]]; then
+    rm -f $outdir/$basename.pcap $outdir/$basename.pcap.xz $outdir/$basename.pcap.info
+fi
+if ! $decomp $file | $INSPECTOR "${INSPECTOR_ARGS[@]}" -o $outdir/$basename.pcap; then
+    error "Error converting file"
+fi
+
+exit 0
+
+# Local Variables:
+# mode: sh
+# End:

@@ -1,0 +1,66 @@
+#!/usr/bin/python3
+#
+# Copyright 2018-2019, 2021 Internet Corporation for Assigned Names and Numbers.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, you can obtain one at https://mozilla.org/MPL/2.0/.
+#
+# Developed by Sinodun IT (sinodun.com)
+#
+# Start a program from dsv.incoming depending on contents of argv[0].
+
+import logging
+import os
+import pathlib
+import sys
+
+# For running from the source tree (even if soft linked from elsewhere)
+# or if not whether from a Debian package and add the necessary Python path.
+# If running from source tree, add that bin to the front of the PATH so
+# that queue jobs get picked up from there too.
+me = pathlib.Path(sys.argv[0])
+localbase = me.resolve().parent.parent
+locallib = localbase / 'src/python3/dsv'
+if locallib.is_dir():
+    sys.path.append(str(locallib.parent))
+    localbin = localbase / 'bin'
+    ospath = os.environ["PATH"]
+    os.environ["PATH"] = str(localbin) + os.pathsep + ospath
+else:
+    deb = pathlib.Path('/usr/share/dns-stats-visualizer/python3')
+    if deb.is_dir():
+        sys.path.append(str(deb))
+
+exit_status = 1
+
+import dsv.commands
+
+cmdlist = ' '.join(dsv.commands.available_commands())
+_, sep, cmd = me.name.partition('dsv-')
+if not sep:
+    del sys.argv[0]
+    if not sys.argv:
+        print('Usage: dsv <command> [<arguments>]\nAvailable commands: {cmds}'.format(cmds=cmdlist), file=sys.stderr)
+        cmd = None
+    else:
+        cmd = sys.argv[0]
+try:
+    if cmd:
+        exit_status = dsv.commands.run_command(cmd, sys.argv)
+except ImportError:
+    print('No Visualizer command {cmd}\nAvailable commands: {cmds}'.format(cmd=cmd, cmds=cmdlist), file=sys.stderr)
+except KeyboardInterrupt:
+    pass
+except Exception as e:
+    logging.error('Exception {exc} ({args})'.format(
+        exc=type(e).__name__,
+        args=str(e)))
+    print('Error {exc} ({args}).'.format(
+        exc=type(e).__name__,
+        args=str(e)), file=sys.stderr)
+sys.exit(exit_status)
+
+# Local Variables:
+# mode: Python
+# End:

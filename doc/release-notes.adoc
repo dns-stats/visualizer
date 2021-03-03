@@ -1,0 +1,7 @@
+= DNS-STATS Visualizer release notes
+Jim Hague <jim@sinodun.com>
+
+== Release 1.0.0
+Released 2021-02-11.
+
+* Initial release.

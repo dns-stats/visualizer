@@ -1,0 +1,46 @@
+= dsv-geo-update(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-geo-update - update Visualizer geographical locations
+
+== SYNOPSIS
+
+*dsv-geo-update* [_OPTION_]...
+
+== DESCRIPTION
+
+Download the latest set of geographic locations used in Visualizer data, and add or update
+the geographic location information in the Postgres database.
+
+MaxMind require that users obtain a licence key in order to download the zip archive
+with the location data. See https://dev.maxmind.com/geoip/geoip2/geolite2/.
+This licence key must be specified in Visualizer configuration.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+*-v, --verbose*::
+  Report progress to standard output.
+
+*-n, --dry-run*::
+  If enabled, treats update as a trial run. The information is read and the current set
+  of location data printed to standard output. The Postgres database is not altered.
+
+*--zipfile* [_arg_]::
+  The MaxMind City CSV data archive `GeoLite2-City-CSV.zip` has already been
+  downloaded as _arg_. Update the location data from the file.
+
+== EXIT STATUS
+
+Non-zero on any error.
+
+== SEE ALSO
+
+link:dsv.cfg.adoc[dsv.cfg].

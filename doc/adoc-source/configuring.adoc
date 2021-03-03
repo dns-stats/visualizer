@@ -1,0 +1,305 @@
+== Advanced Configuration
+
+=== Visualizer configuration
+
+==== Configuration file
+
+Visualizer commands have built-in configuration defaults, and look to override these by
+reading configuration from configuration files in a succession of locations:
+
+* `/etc/dns-stats-visualizer/dsv.cfg`
+* `/etc/dns-stats-visualizer/private.cfg`
+* `~/.dsv.cfg`
+* `~/.dsv.private.cfg`
+
+In normal operation configuration is under `/etc/dns-stats-visualizer`. Typically most
+configuration is in world readable file `/etc/dns-stats-visualizer/dsv.cfg`.
+Sensitive configuration, such as passwords, can be
+place in `/etc/dns-stats-visualizer/private.cfg`,
+with file access permissions allowing reading only by selected users.
+
+The format of a configuration file is similar to Windows INI files; the start of a group is
+indicated by a line `[<group>]`, and individual entries are of the form `<entry>=<value>`.
+A sample configuration file is included in the install packages.
+Full details on available configuration options are in the `dsv.cfg(5)` manual page.
+
+The following table lists notable configuration items that you are likely to want to change.
+
+.Notable configuration items
+[%header,cols="1a,1a,4a"]
+|===
+| Group
+| Setting
+| Description
+
+.3+| datastore
+| path
+| Path to the root directory of the C-DNS file storage.
+Default `/var/lib/dns-stats-visualizer/cdns`.
+
+| cdns_file_pattern
+| Filename `glob(7)` pattern matching incoming C-DNS files.
+Default `*.cdns.xz`.
+
+| user
+| The user that owns or has write access to the C-DNS file storage hierarchy.
+Default `dsv`.
+
+.2+| postgres
+| user
+| Username for PostgreSQL access.
+Default `dsv`.
+
+| password
+| Password for PostgreSQL access.
+Default `dsv`.
+
+.5+| clickhouse
+| servers
+| Hostnames of all servers in the ClickHouse cluster. Separate names of multiple servers
+with a comma. Example: `dsv-clickhouse1,dsv-clickhouse2,dsv-clickhouse3,dsv-clickhouse4`.
+Default: `dsv-clickhouse`
+
+| dbdir
+| The directory under which ClickHouse stores its data. This value must agree with the
+`<path>` setting in ClickHouse's configuration. If you are operating a ClickHouse cluster,
+all members of the cluster must use the same directory path.
+Default `/var/lib/clickhouse`.
+
+| import-server
+| The ClickHouse server to use when importing new raw query/response data.
+Default `dsv-clickhouse`.
+
+| user
+| Username for ClickHouse access.
+Default `dsv`.
+
+| password
+| Password for ClickHouse access.
+Default `dsv`.
+
+| geo
+| licencekey
+| MaxMind licence key.
+|===
+
+===== Logging
+
+Visualizer commands produce logging. Any errors are always logged, and
+some commands also produce status update log messages,
+For example, `dsv-worker` logs the start of each job and successful
+completion at DEBUG level.
+
+What gets logged is also controlled by the main configuration.
+By default, log messages of priority INFO or greater are logged to the
+system logging facility.
+
+----
+[logger_root]
+level=INFO
+handlers=syslog
+----
+
+To log at level DEBUG:
+
+----
+[logger_root]
+level=DEBUG
+----
+
+To log a level DEBUG message to file `/tmp/visualizer.log` with an
+explicit message format:
+
+----
+[handler_fileHandler]
+class=FileHandler
+level=DEBUG
+formatter=simpleFormatter
+args=('/tmp/visualizer.log', 'w')
+
+[formatter_simpleFormatter]
+format=%(asctime)s - %(name)s - %(levelname)s - %(message)s
+datefmt=
+
+[logger_root]
+level=DEBUG
+handlers=fileHandler
+----
+
+In the default configuration the Gearman library logging is seperately configured:
+
+----
+[logger_gear]
+level=ERROR
+qualname=gear
+propagate=0
+handlers=syslog
+----
+
+By default the Gearman library logging is ERROR;
+lower levels produce a lot of logging for every queue interaction,
+and this makes it difficult to distinguish Visualizer-level logging.
+To date, no notable problem has been found in use of GearMan,
+so the logging is left at the ERROR level.
+
+There are many other possibilities for configuring logging, from where to send log
+output to how it is formatted. Details can be teased out of
+https://docs.python.org/3/howto/logging.html.
+
+
+
+
+=== ClickHouse configuration
+
+The  `dns-stats-visualizer-clickhouse-server` package installs
+sample ClickHouse configurations in `.xml.dsv` files in
+`/etc/clickhouse-server/config.d` and `/etc/clickhouse-server/users.d`.
+If you are not familiar with ClickHouse configuration, consult the
+https://clickhouse.tech/docs/en/operations/configuration-files/[ClickHouse documentation].
+This section highlights aspects of those installed configuration files that are important
+when configuring ClickHouse for use with Visualizer.
+
+Note that to use any of these with ClickHouse you must rename them from `.xml.dsv`
+to `.xml`.
+
+.ClickHouse configuration for Visualizer
+[cols="1a,4a"]
+|===
+| `config.d/cluster.xml.dsv`
+| Configure a ClickHouse cluster `dsv`, The supplied Visualizer ClickHouse schema (DDL)
+files assume a cluster named `dsv` is in use. They create ClickHouse `Distributed` tables
+used by Grafana to refer to cluster-wide data sets; these tables specify that the underlying
+per-ClickHouse-host tables are distributed across all hosts that are members of cluster `dsv`.
+Even if only one ClickHouse host is being used, this cluster must still be defined.
+
+| `config.d/compresson.xml.dsv`
+| Configure compression used by ClickHouse when storing table data on disc.
+The raw query/response data, in particular, is very compressible. It is suggested to
+configure ClickHouse to use `zstd` compression as a good balance between
+high compression and low overhead.
+
+| `config.d/config.xml.dsv`
+| Miscellaneous configuration settings for ClickHouse:
+
+. Listen for connections to ClickHouse from any host.
+. Log to files under `/var/log/clickhouse-server/`.
+. Set the server time zone to UTC. This is currently required by Visualizer.
+. Read ClickHouse dictionary definitions from directory `dictionaries.d`
+  under the standard ClickHouse configuration directory,
+
+| `users.d/profiles.xml.dsv`
+| Set memory limit for processing a single query, and create a profile `readonly` in which
+the profile user cannot write to the ClickHouse database.
+
+| `users.d/users.xml.dsv`
+| Configure two ClickHouse users:
+
+. `dsv`. Alllow connections to this user from anywhere, require a password (default `dsv`),
+and permit writing to the database. Used by the datastore import process.
+. `dsv-main`. Alllow connections to this user from anywhere, don't require a password,
+and forbid writing to the database. This is a suitable user for Grafana to connect using.
+|===
+
+=== Grafana configuration
+
+Refer to xref:Overview_and_Basic_install.adoc#_installing_grafana_hosts[Installing Grafana hosts]
+for the minimum necessary Grafana configuration when installing Visualizer.
+
+Then it is useful to you familiarise yourself with the Grafana documentation, particularly
+as it relates to
+https://grafana.com/docs/grafana/latest/manage-users/[user managment],
+https://grafana.com/docs/grafana/latest/administration/provisioning/[provisioning],
+and the
+https://grafana.com/grafana/plugins/vertamedia-clickhouse-datasource[ClickHouse plugin].
+
+NOTE: The sample datasource provisioning files supplied with Visualizer specify using POST
+  HTTP transactions for sending queries to ClickHouse. This is due to limits on the length
+  of queries that can be submitted when using the default GET. It is easily possible that queries,
+  particularly in installations with hundreds of nodes configured, comfortably overflow
+  the GET limit.
+
+=== Optional modules
+
+==== RSSAC reports
+
+Visualizer includes optional modules useful for generating RSSAC reports.
+Published for root zone operators, these reports are documented in
+https://www.icann.org/groups/rssac/documents[ICANN document]
+RSSAC002.
+
+NOTE: Visualizer does not implement the `zone-size` metric.
+
+In the packaged Visualizer, the installed dashboards include displays
+showing the quantities described in the RSSAC specification.
+The specification also describes a standard report, a directory structure
+containing YAML text files containing measurements and graph images.
+
+Optional package `dns-stats-visualizer-rssac-reports` can be installed on the
+Grafana host and adds a command `dsv-rssac-rssac-reports` which can be used to
+generate reports into a specified output directory.
+
+Additionally, the standard footer
+(`grafana/common/footer.html`) appended to each generated
+Grafana dashboard includes a link to a directory containing these
+reports. To provide reports linked from the dashboards, you will need
+to install a web server serving the directory hierarchy generated by
+`dsv-rssac-reports` on the `dsv-grafana` host.
+
+A `cron` job can be configured on the Grafana host to generate RSSAC reports on a daily basis.
+By default reports are generated for the day 1 week in the past.
+This time delay is suggested to ensure that all data for the nodes has been
+uploaded when the report is run.
+`dsv-rssac-reports` uses the ClickHouse user and
+password to access ClickHouse, and so if a private password is in use
+will need to be run by a user with access to that. A suitable `crontab` entry
+to run the job at 3am daily would be:
+
+----
+# m h  dom mon dow   command
+0 3 * * * /usr/bin/dsv-rssac-reports --output-dir <output dir> --report all --server <server name>
+----
+
+===== RSSAC `load-time`
+
+One of the items in RSSAC reporting is the load time, the time elapsed
+between a zone update and the update being served by each of the
+nodes in a server.
+
+The package `dns-stats-visualizer-rssac-notify` that can be installed on the
+Datastore host includes two new commands that together perform the measurements
+and add the data to ClickHouse.
+
+* `dsv-rssac-notify`. Given a zone serial ID, this sends requests to each
+  node with configured service address (see <<_specifying_node_details>>)
+  and records the elapsed time before it receives confirmation
+  that the zone is updated to the new serial ID.
+* `dsv-rssac-daemon`. One method for the central authority in a zone to indicate that
+  new zone data has been uploaded is to send a NOTIFY message to all interested
+  parties containing the new serial ID. `dsv-rssac-daemon` is designed to be a daemon
+  run from `systemd` that listens on a configured socket for NOTIFY messages, and if
+  it receives a NOTIFY with a serial ID, it runs `dsv-rssac-notify`, passing it the
+  new serial ID. After installing, the daemon must be enabled and started with
+  `systemctl` in the normal `systemd` manner.
++
+The package includes `systemd` socket and service definitions. These listen for
+  NOTIFY messages via IPv4 and IPv6 on port 53, and run `dsv-rssac-daemon` as
+  user `dsv`.
+
+==== Input mirroring
+
+It is sometimes useful for testing purposes to take a feed of incoming C-DNS files from
+an existing production datastore and duplicate them into a test datastore.
+The package `dns-stats-visualizer-import-mirror` which can be installed on the Datastore host adds a daemon
+`dsv-import-mirror`, to be run from `systemd` on the origin datastore.
+Once running, any new file created in an `incoming` directory has a hard link
+created to it in a parallel directory structure.
+
+This parallel directory structure can then be periodically copied by a separate
+target datastore. For example, the following command could be run
+periodically on a target host to obtain copies of the incoming files from the
+main datastore:
+
+[source]
+----
+$ rsync --archive --remove-source-files <datastore host>:<mirror dir>/ <datastore base dir>
+----

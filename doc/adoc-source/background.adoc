@@ -1,0 +1,10 @@
+== Background
+
+The DNS-STATS Visualizer Overview and Basic Installation document provides a high
+level view of Visualizer and instructions on how to use the packages to perform
+a standard, default installation on 3 hosts.
+
+This document provides more detailed information on day to day operation of Visualizer,
+details on advanced configuration options and how to customise the installation.
+
+It also covers how to develop new code on top of the default Visualizer framework.

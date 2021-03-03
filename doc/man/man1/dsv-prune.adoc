@@ -1,0 +1,87 @@
+= dsv-prune(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-prune - report Visualizer database disc usage and optionally delete oldest partition
+
+== SYNOPSIS
+
+*dsv-prune* [_OPTION_]...
+
+== DESCRIPTION
+
+Reports the current percentage of available disc space used by the Visualizer
+database on each of the Visualizer cluster machines.
+
+If the used disc space percentage is at or above a threshold, attempt to
+free some disc space by deleting all data partitions in a specified category that are
+more than a given number of days old.
+
+The available categories of data are:
+
+. `raw`. Raw data. Records of individual queries and responses.
+. `5min`. Summaries of raw data aggregated over 5 minutes.
+
+If the *--incremental* flag is given, partitions are deleted one at a time starting with the
+oldest and deletion stops once disc usage falls below the specified disc usage threshold.
+
+In all cases, user confirmation or use of the *--force* flag is required before
+a partition is deleted.
+
+Deleted partitions are deleted from all Visualizer database cluster servers on which
+the partition is present.
+
+Data is partitioned into weekly partitions. The partition name displayed will be
+of the form `YYYYWW` where `YYYY` is the year and `WW` is the week number
+within the year.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+*-t, --threshold* [_arg_]::
+  Set the disc usage percent threshold. If the disc usage is at or above this percentage,
+  find the oldest partition and ask if should be deleted. Default is 80.
+
+*--force*::
+  If disc usage is at or above the threshold, don't ask for confirmation, but
+  delete partitions. Use this option with caution.
+
+*-l, --list-partitions*::
+  Don't check disc usage, just list the current partitions for all data categories
+  to standard output.
+
+*--report-only*::
+  Only report disc usage. Do not delete any partition, regardless of other options.
+
+*-n, --dry-run*::
+  If deleting partitions, report the partitions to be deleted, but do not delete them.
+
+*-d, --age-data* [_arg_]::
+  The category of data to consider for deletion. If specified, must be one
+  of the following options:
+  * `raw`. Raw data. Records of individual queries and responses.
+  * `5min`. Summaries of raw data aggregated over 5 minutes.
+  Default is `raw`.
+
+*-a, --max-age* [_arg_]::
+  Delete all partitions in the specified data category which are
+  older than the given age in days. Default is 365, so where data is more than a
+  year old.
+
+*-i, --incremental*::
+  After deleting a partition, re-check the disc space and stop if now below
+  the threshold. Default is to delete all over-age partitions.
+
+== EXIT STATUS
+
+0 on success, non-zero on any error.
+
+== SEE ALSO
+
+link:dsv.cfg.adoc[dsv.cfg].

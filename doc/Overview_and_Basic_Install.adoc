@@ -1,0 +1,15 @@
+= DNS-STATS Visualizer Overview and Basic Install
+DNS-STATS <dns-stats-users@dns-stats.org>
+v{dsvversion}
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 3
+:sectnums:
+:sectnumlevels: 5
+:icons: font
+:imagesdir: adoc-source
+:xrefstyle: full
+
+include::adoc-source/overview.adoc[]
+
+include::adoc-source/basic_install.adoc[]

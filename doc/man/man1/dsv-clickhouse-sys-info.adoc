@@ -1,0 +1,45 @@
+= dsv-clickhouse-sys-info(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-clickhouse-sys-info - report information on the host ClickHouse system
+
+== SYNOPSIS
+
+*dsv-sys-info* [_OPTION_]...
+
+== DESCRIPTION
+
+Reads one or more request names from standard input, one per line, and
+for each output the corresponding information, one piece per line.
+
+All disc quantities refer to the disc holding the ClickHouse Visualizer tables,
+obtained from the Visualizer configuration.
+
+This command is intended for use as the backend to a ClickHouse dictionary,
+hence the rather curious usage.
+
+The commands available are:
+
+* `disc-block-size`. Report the size of a disc block.
+* `disc-size`. Report the size of the disc in units of 1K.
+* `disc-available`. Report the space free on the disc in units of 1K.
+* `disc-percent-free`. Report the percentage of the disc free.
+* `disc-size`. Report the percentage of the disc used.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+== EXIT STATUS
+
+0 on success, non-zero on any error.
+
+== SEE ALSO
+
+link:dsv.cfg.adoc[dsv.cfg].

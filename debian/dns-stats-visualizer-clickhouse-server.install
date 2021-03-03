@@ -1,0 +1,9 @@
+bin/dsv-clickhouse-sys-info usr/bin
+bin/dsv-clickhouse-update usr/bin
+etc/clickhouse/config.d etc/clickhouse-server
+etc/clickhouse/dictionaries.d etc/clickhouse-server
+etc/clickhouse/users.d etc/clickhouse-server
+etc/odbc.ini.dsv etc
+src/python3/dsv/commands/clickhouse_sys_info.py usr/share/dns-stats-visualizer/python3/dsv/commands
+src/python3/dsv/commands/clickhouse_update.py usr/share/dns-stats-visualizer/python3/dsv/commands
+sql/clickhouse/ddl* usr/share/dns-stats-visualizer/sql/clickhouse/

@@ -1,0 +1,100 @@
+#!/usr/bin/python3
+#
+# Copyright 2021 Internet Corporation for Assigned Names and Numbers.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, you can obtain one at https://mozilla.org/MPL/2.0/.
+#
+# Developed by Sinodun IT (sinodun.com)
+#
+# Scan a Visualizer Grafana dashboard Python file and extract the
+# dependencies. These are either Python imported modules or
+# HTML panel files.
+#
+# This is very dependent on current dashboard source practices.
+#
+
+import argparse
+import pathlib
+import re
+import sys
+import traceback
+
+PYTHON_PATHS = [
+    'grafana/common',
+    'src/python3',
+]
+
+python_re = [
+    re.compile(r'import +(?P<module>[^ ]+)'),
+    re.compile(r'from +(?P<module>[^ ]+) +import'),
+]
+
+other_re = [
+    re.compile(r'(HTML|Markdown)Panel\([\'"](?P<module>[^\'"]+)'),
+]
+
+def match_res(relist, lines):
+    res = []
+    for r in relist:
+        for line in lines:
+            m = r.search(line)
+            if m:
+                res.append(m.group('module'))
+    return res
+
+def get_local_python(modules):
+    res = []
+    for m in modules:
+        fname = m.replace('.', '/') + '.py'
+        for path in PYTHON_PATHS:
+            f = pathlib.Path(path + '/' + fname)
+            if f.exists():
+                res.append(str(f))
+                break
+    return res
+
+def read_python_file(pyfile):
+    res = []
+    with open(pyfile) as f:
+        lines = f.readlines()
+        python = get_local_python(match_res(python_re, lines))
+        html = match_res(other_re, lines)
+        res.extend(python)
+        res.extend(html)
+        for p in python:
+            for dep in read_python_file(p):
+                if dep not in res:
+                    res.append(dep)
+    return res
+
+parser = argparse.ArgumentParser('Extract dependencies from Grafana dashboard Python')
+parser.add_argument('--traceback',
+                    dest='traceback', action='store_true',
+                    help=argparse.SUPPRESS)
+parser.add_argument('f', nargs='+')
+args = parser.parse_args()
+
+try:
+    for f in args.f:
+        deps = read_python_file(f)
+        print('{} {}: {} {}'.format(
+            f.replace('.py', '.json'),
+            f.replace('.py', '.d'),
+            f,
+            ' '.join(deps)))
+except Exception as e:
+    if args.traceback:
+        traceback.print_exc()
+    print('Error {exc} ({args}).'.format(
+        exc=type(e).__name__,
+        args=str(e)), file=sys.stderr)
+    sys.exit(1)
+
+sys.exit(0)
+
+
+# Local Variables:
+# mode: Python
+# End:

@@ -1,0 +1,16 @@
+{
+  "description": "Log Grafana API requests",
+  "manifest_version": 2,
+  "name": "grafana-api-logger",
+  "version": "0.2",
+
+  "permissions": [
+    "webRequest",
+      "*://*/api*",
+      "*://*/stats/api*"
+  ],
+
+  "background": {
+    "scripts": ["background.js"]
+  }
+}

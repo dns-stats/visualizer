@@ -1,0 +1,28 @@
+#!/usr/bin/python3
+#
+# Copyright 2019-2020 Internet Corporation for Assigned Names and Numbers.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, you can obtain one at https://mozilla.org/MPL/2.0/.
+#
+# Developed by Sinodun IT (sinodun.com)
+#
+# Build a Grafana dashboard defined in GrafanaLib to JSON.
+
+import os
+import sys
+
+mydir = os.path.dirname(os.path.realpath(__file__))
+
+for p in ['/../common',
+          '/../../src/python3',
+          '/../../tools/grafanalib',
+          ]:
+    dir = os.path.realpath(mydir + p)
+    if os.path.exists(dir):
+        sys.path.insert(0, dir)
+
+import grafanalib._gen as gen
+
+gen.generate_dashboard_script()

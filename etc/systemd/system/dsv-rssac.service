@@ -1,0 +1,14 @@
+[Unit]
+Description=DNS-STATS Visualizer RSSAC Service
+After=network.target dsv-rssac.socket
+Requires=dsv-rssac.socket
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/dsv-rssac-daemon --socket-type ipv6
+TimeoutStopSec=5
+Restart=on-failure
+User=dsv
+
+[Install]
+WantedBy=default.target

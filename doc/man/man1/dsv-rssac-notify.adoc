@@ -1,0 +1,44 @@
+= dsv-rssac-notify(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-rssac-notify - get latency and size info for a zone
+
+== SYNOPSIS
+
+*dsv-rssac-notify* [_OPTION_]... _SERIAL_
+
+== DESCRIPTION
+
+Check to see if latency and size information is already recorded for the
+zone configured by `rssac.zone`. If none is present, and the given serial
+number is later than the last seen, probe for and record the zone
+latency on all active Visualizer nodes that do not have the `not-rssac` flag set,
+and also record the zone size.
+
+This is designed to be run from `dsv-rssac-daemon`.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+*-n, --dryrun*::
+  Perform a trial run. Print results but do not record them in the database.
+
+*-t, --timeout* [_arg_]::
+  Overall timeout in seconds for load time. Give up on nodes that have not been
+  updated after this time. Default is 800 seconds.
+
+== EXIT STATUS
+
+Non-zero on any error, or if the check is not considered successful due to too few nodes
+responding.
+
+== SEE ALSO
+
+link:dsv-rssac-notify.adoc[dsv-rssac-daemon], link:dsv.cfg.adoc[dsv.cfg].

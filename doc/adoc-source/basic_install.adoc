@@ -1,0 +1,488 @@
+== Installing DNS-STATS Visualizer
+
+This section describes how to perform a fresh install of Visualizer onto three new servers
+using the
+https://launchpad.net/~dns-stats/+archive/ubuntu/visualizer[distributed Visualizer packages].
+
+.Servers
+[%header,cols="1a,1a,3a"]
+|===
+|Type
+|Hostname
+|Role
+
+|Datastore
+|`dsv-datastore`
+|Receive and convert C-DNS files, and import into ClickHouse.
+
+|ClickHouse
+|`dsv-clickhouse`
+|ClickHouse database host.
+
+|Grafana
+|`dsv-grafana`
+|Grafana site serving Visualizer dashboards.
+|===
+
+The install instructions are intended to take you through to a complete working installation
+of Visualizer as briefly as possible. The sample configuration files assume the above hostnames
+are used. The main user manual includes notes on installing and configuring Visualizer
+to your requirements.
+
+It is assumed that each host has the base OS installed - but no existing ClickHouse
+or Grafana install. it is also assumed that the names and IP addresses of each host
+are known to the other hosts in the install; in other words, that you get a response
+from the other hosts when attempting a network connection.
+
+[source,console]
+----
+dsv-datastore $ ping dsv-clickhouse
+<response from dsv-clickhouse>
+----
+
+
+NOTE: Visualizer is currently tested on Ubuntu 18.04 Bionic Beaver
+only, so all instructions assume that is the target system.
+
+[sidebar]
+Visualizer requires that all servers are configured to use the UTC timezone
+(due to dependancies in some of the drivers used).
+
+
+=== Installing the Datastore host
+
+Before starting the datastore host install, you will need to obtain a free licence
+for MaxMind GeoLite2. You will need the account ID and the licence key.
+Details of how to obtain the licence are at https://dev.maxmind.com/geoip/geoip2/geolite2/,
+
+. Add the ClickHouse package
+repository as described in the ClickHouse installation manual at
+https://clickhouse.tech/docs/en/getting-started/install/
+
+. Install PostgreSQL. This can be selected as part of the Ubuntu install process,
+  or:
++
+[source,console]
+----
+$ sudo apt install postgresql
+----
+. Install DNS STATS inspector `dns-stats-inspector` and the DNS-STATS Visualizer `dns-stats-visualizer-import` packages.
++
+[source,console]
+----
+$ sudo add-apt-repository ppa:dns-stats/compactor-bionic
+$ sudo add-apt-repository ppa:dns-stats/visualizer
+$ sudo apt install dns-stats-inspector dns-stats-visualizer-import
+----
+. Create an OS user `dsv` to own the Visualizer files, and also create the PostgreSQL
+  `dsv` database. A convenient script `dsv-datastore-setup` will do both.
++
+[source,console]
+----
+$ dsv-datastore-setup
+----
+. Edit the file `/etc/dns-stats-visualizer/dsv.cfg`.
+.. Add the MaxMind license key in the `[geo]` clause.
+.. If you wish, sensitive settings such as passwords can be specified instead in
+  `/etc/dns-stats-visualizer/private.cfg` and that file made readable only by
+  user `dsv`.
+
+. PostgreSQL must be configured to permit access for the `dsv` user from the install (Database)
+  host and any ClickHouse host(s).
+.. Enable access for user `dsv` to the PostgreSQL database `dsv`.
+Edit  `/etc/postgresql/10/main/pg_hba.conf` and add, for example,
+the following (you will probably want to use more restrictive permitted
+network subnets).
++
+----
+# Allow password access by user dsv to database dsv from
+# local Unix sockets and the Visualizer cluster.
+local   dsv         dsv                            md5
+host    dsv         dsv          ::0/0             md5
+host    dsv         dsv          0.0.0.0/0         md5
+----
++
+The above will need to appear in the file *before* this line:
++
+----
+local   all             all                        peer
+----
+
+.. Allow PostgreSQL to listen for connections from other hosts (if using separate
+hosts for PostgreSQL and ClickHouse). Append the following
+to `/etc/postgresql/10/main/postgresql.conf`:
++
+----
+listen_addresses = '*'
+----
+
+.. After editing, ensure PostgreSQL restarts with the new configuration.
++
+[source,console]
+----
+$ sudo systemctl restart postgresql
+----
+. Load the initial PostgreSQL tables.
++
+[source,console]
+----
+$ dsv-postgres-update -v
+Applied 1.
+----
+
+. Incoming and processed C-DNS files are stored in a directory structure with a root
+  at a location given in the configuration item `datastore.path`. This directory
+  structure must be owned by user `dsv`. If using the default
+  directory, `/var/lib/dns-stats-visualizer/cdns/`, that directory must have
+  its owner changed to user `dsv`.
++
+[source,console]
+----
+$ sudo chown -R dsv:dsv /var/lib/dns-stats-visualizer/cdns/
+----
+. Complete the configuration for MaxMind GeoLite.
+
+.. Edit the file `/etc/GeoIP.conf` installed by the `geoipupdate` package.
+... Enter your account ID and license key details. (The text in this
+configuration file may be out of date and indicate that these fields can be left
+as 0s - this is no longer the case.)
+... Also replace the last line starting with `EditionIDs` with the following line
++
+[source,console]
+----
+EditionIDs GeoLite2-City GeoLite2-Country GeoLite2-ASN
+----
++
+... Entries `UserId` and `ProductId` are obsolete and should be commented out
+    or removed.
+.. After that, install the databases by running:
++
+[source,console]
+----
+$ sudo geoipupdate
+----
++
+You may wish to schedule a regular update via `cron` as described
+in xref:Advanced_User_Guide.adoc#_automatically_scheduled_jobs[Automatically Scheduled Jobs].
+
+.. Geographic Grafana plots need to convert client location IDs to latitude/longitude.
+   Visualizer uses a PostgreSQL table for this. This table is updated using:
++
+[source,console]
+----
+$ dsv-geo-update
+----
++
+This command can take a short while to run. Again, you may wish to
+schedule a regular update via `cron` as described
+in xref:Advanced_User_Guide.adoc#_automatically_scheduled_jobs[Automatically Scheduled Jobs].
+
+. Some Visualizer Grafana displays use information on current Top Level Domains (TLDs).
+  This is also held in PostgreSQL tables, The data is downloaded from IANA and the
+  tables updated by `dsv-tld-update`.
++
+[source,console]
+----
+$ dsv-tld-update
+----
++
+This command can take a short while to run. Again, you may wish to
+schedule a regular update via `cron` as described
+in xref:Advanced_User_Guide.adoc#_automatically_scheduled_jobs[Automatically Scheduled Jobs].
+
+. Set up default `supervisord` controlled instances of the `dsv-worker` process to
+  process incoming files. The sample configuration runs 5 instances of `dsv-worker`.
+  Adjust the number of instances to suit your anticipated workload and system resources.
++
+[source,console]
+----
+$ sudo apt install supervisor
+$ sudo cp /etc/supervisor/conf.d/dsv.conf.sample /etc/supervisor/conf.d/dsv.conf
+$ sudo supervisorctl reload
+----
+. Once a ClickHouse host is also installed, the import of C-DNS files can be tested.
+  See <<_testing_the_import_process>>.
+
+=== Installing the ClickHouse host
+
+. Add the ClickHouse package
+repository as described in the ClickHouse installation manual at
+https://clickhouse.tech/docs/en/getting-started/install/.
+
+. Install the DNS-STATS Visualizer `dns-stats-visualizer-clickhouse-server` package.
++
+[source,console]
+----
+$ sudo add-apt-repository ppa:dns-stats/visualizer
+$ sudo apt install dns-stats-visualizer-clickhouse-server
+----
++
+. The package installs a total of 5 sample ClickHouse configurations in `*.xml.dsv` files in
+  `/etc/clickhouse-server/config.d` and `/etc/clickhouse-server/users.d`. For a default install, only one file needs updating:
+.. `/etc/clickhouse-server/users.d/users.xml.dsv`. Update the settings for the default and `dsv` users if required.
+
+. Then rename all five files to `*.xml` so they will override the default ClickHouse configuration, for example
++
+[source,console]
+----
+$ sudo apt install rename
+$ sudo su root
+$ rename 's/.xml.dsv/.xml/' /etc/clickhouse-server/config.d/*.xml.dsv
+$ rename 's/.xml.dsv/.xml/' /etc/clickhouse-server/users.d/*.xml.dsv
+----
+
+. Edit the settings in `/etc/dns-stats-visualizer/dsv.cfg` to match those used in the same file on your Datastore host.
+
+. ClickHouse uses ODBC to communicate with PostgreSQL on the datastore.
+  Copy `/etc/odbc.ini.dsv` to `/etc/odbc.ini`.
++
+[source,console]
+----
+$ sudo cp /etc/odbc.ini.dsv /etc/odbc.ini
+----
++
+Test the setup:
++
+[source,console]
+----
+$ isql dsv
++---------------------------------------+
+| Connected!                            |
+|                                       |
+| sql-statement                         |
+| help [tablename]                      |
+| quit                                  |
+|                                       |
++---------------------------------------+
+SQL>
+----
+
+. Then restart ClickHouse with the new configuration.
++
+[source,console]
+----
+$ sudo systemctl restart clickhouse-server
+----
+
+. Load the initial ClickHouse tables.
++
+[source,console]
+----
+$ dsv-clickhouse-update -v
+Applied 1.
+Applied 2.
+Applied 10.
+Applied 11.
+----
+
+=== Testing the import process
+
+==== On the Datastore host
+
+. To test the import process, add a real or test node to the database. Make a copy of the file
+`/etc/dns-stats-visualizer/nodes.csv.sample` called `nodes.csv`
++
+[source,console]
+----
+$ sudo cp /etc/dns-stats-visualizer/nodes.csv.sample /etc/dns-stats-visualizer/nodes.csv
+----
+and edit it to add a server e.g. uncomment the last line
++
+[source,console]
+----
+TestServer,TestNode,TestRegion,TestCountry,TestCity,TestInstance
+----
+. Import nodes into the database
++
+[source,console]
+----
+$ dsv-nodes-update -c /etc/dns-stats-visualizer/dsv.cfg /etc/dns-stats-visualizer/nodes.csv
+----
+. A test C-DNS file is installed by the package in `/usr/share/dns-stats-visualizer/sampledata/testnode.cdns.xz`. Copy this as user `dsv` into a node incoming directory.
+For example:
++
+[source,console]
+----
+$ sudo -u dsv mkdir -p /var/lib/dns-stats-visualizer/cdns/TestServer/TestNode/incoming
+$ sudo -u dsv cp /usr/share/dns-stats-visualizer/sampledata/testnode.cdns.xz /var/lib/dns-stats-visualizer/cdns/TestServer/TestNode/incoming
+----
++
+You can check the queue status and should see one file in `CDNS incom`
++
+[source,console]
+----
+$ dsv-queue-details -p
+----
+. Run the `dsv-import` command directly to process the waiting file.
++
+[source,console]
+----
+$ sudo -u dsv dsv-import -s incoming -v
+----
+which will report adding the file to the cdns-to-tsv processing queue.
+. Re-check the queue status and after a few seconds the files should be gone and no errors reported (you may transiently see a file in the `TSV pend` queue)
++
+[source,console]
+----
+$ dsv-queue-details -p
+----
++
+You can also see the status of the processing queues using
++
+[source,console]
+----
+$ dsv-status
+----
++
+You can also check the logs to see the result of the import process:
++
+[source,console]
+----
+$ sudo tail /var/log/syslog
+----
+
+==== On the Clickhouse host
+
+. Run a query against the database (note that the default ClickHouse prompt is `dsv-clickhouse :)`)
++
+[source,console]
+----
+$ clickhouse-client -d dsv
+
+dsv-clickhouse :) show tables;
+SHOW TABLES
+
+Query id: 8176d410-0fb9-4a4e-b0da-4aaae10e2f47
+
+┌─name───────────────────────────────────┐
+│ AAATopUndelegatedTldPerFiveMins        │
+│ AAATopUndelegatedTldPerFiveMinsShard   │
+│ AAATopUndelegatedTldPerFiveMinsShardMV │
+│ ImportQueueSizes                       │
+│ ImportQueueSizesShard                  │
+│ PacketCounts                           │
+│ PacketCountsShard                      │
+│ QueryResponse                          │
+│ QueryResponseShard                     │
+│ ZoneLatency                            │
+│ ZoneLatencyShard                       │
+│ ddl_history                            │
+│ geolocation                            │
+│ iana_text                              │
+│ node_text                              │
+│ server_address                         │
+│ tld_text                               │
+└────────────────────────────────────────┘
+
+17 rows in set. Elapsed: 0.002 sec.
+
+dsv-clickhouse :) SELECT count() FROM QueryResponse;
+
+SELECT count()
+FROM QueryResponse
+
+Query id: 4790c017-8c1e-40e8-864f-c35c88bd7c55
+
+┌─count()─┐
+│     999 │
+└─────────┘
+
+1 rows in set. Elapsed: 0.004 sec.
+----
+
+=== Setting up a running import system
+
+. After manual testing that the process is working correctly, you should:
+.. add your specific nodes to the database. See the configuring section
+   of the user guide.
+.. upload your data files from your nodes into the datastore directory structure.
+.. run the `dsv-import` process periodically from `cron`. See the configuring section
+   of the user guide.
+.. and similarly, periodically log details on the status of the work queues to ClickHouse
+   for monitoring with `dsv-queue-details`.
+
+More details on the general operation and administration of the system can be found
+in the first two sections of the xref:Advanced_User_Guide.adoc[Advanced User Guide].
+
+
+=== Installing Grafana hosts
+
+The standard means of displaying the data collected by Visualizer is to use Grafana
+with a set of dashboards showing Visualizer plots and other information. Visualizer
+includes a basic set of Grafana dashboards.
+
+The Visualizer framework chooses to use the file-based provisioning system for
+Grafana (as opposed to the GUI or the HTTP API which are much less easily
+automated for our use case). However, this does require some manual set up to
+be done, specifically for user access.
+
+Testing has only been done on recent versions of Grafana installed using the process below.
+
+. Use the Grafana Debian/Ubuntu package repository as described at
+  https://grafana.com/docs/grafana/latest/installation/debian/.
+
+. Start Grafana and configure it to start at boot following the instructions on
+  https://grafana.com/docs/grafana/latest/installation/debian/.
+
+. Install the `dns-stats-visualizer-grafana-main` package. This will install all the
+  dashboards, data sources and the required plugins.
++
+[source,console]
+----
+$ sudo add-apt-repository ppa:dns-stats/visualizer
+$ sudo apt install dns-stats-visualizer-grafana-main
+----
+
+. Verify the correct plugins have been installed. The versions are unimportant.
++
+[source,console]
+----
+$ sudo grafana-cli plugins ls
+installed plugins:
+grafana-image-renderer @ 2.0.0
+grafana-worldmap-panel @ 0.3.2
+natel-plotly-panel @ 0.0.7-dev
+vertamedia-clickhouse-datasource @ 2.2.0
+----
+
+. The package installs a sample Grafana datasource provisioning file at
+  `/etc/grafana/provisioning/datasources/dsv-main.yml.sample`. Copy
+  this to `dsv-main.yml` in the same directory:
++
+[source,console]
+----
+$ sudo cp /etc/grafana/provisioning/datasources/dsv-main.yml.sample /etc/grafana/provisioning/datasources/dsv-main.yml
+----
+You do not need to edit this file for a default install but you may want to review the security settings.
+
+. After editing, restart Grafana with the new configuration.
++
+[source,console]
+----
+$ sudo systemctl restart grafana-server
+----
+
+. Log into Grafana via the web interface as administrator by pointing a web browser at http://dsv-grafana:3000
+and logging in as user `admin` password `admin`.
+You may want to change the admin password and otherwise configure authentication
+at this time.
+. Click on  the `Dashboards\Manage` option in the left hand sidebar, then click on
+  the `General`-> `DNS-STATS Visualizer main menu` item in the list of dashboards.
+.. Mark this dashboard as a favourite by clicking on the star icon to the right of the dashboard title. The icon should turn orange.
+
+. Click on the `Configuration\Preferences` icon menu in the left hand sidebar. Under the `Home Dashboard` heading select `DNS-STATS Visualizer main menu` from the drop down.
++
+Save the preferences.
+. Check you can see the test data that was imported by choosing the `Query Statistics` graph from the main dashboard
+and using the time picker in the top right to set the window to start at 2016-06-29:15:45 and end at 2016-06-29:16:00. You will see a single data point at 15:50.
+. If you want users to be able to view Grafana dashboards without logging in to Grafana,
+  you will need to allow anonymous access to Grafana . You will also need to allow
+  anonymous access if you want to produce RSSAC reports.
++
+To allow anonymous access, edit `/etc/grafana/grafana.ini` and in
+section `[auth.anonymous]`, set `enabled = true`. Then restart Grafana:
++
+[source,console]
+----
+$ sudo systemctl restart grafana-server
+----

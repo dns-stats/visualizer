@@ -1,0 +1,155 @@
+#!/bin/bash
+#
+# Copyright 2018-2021 Internet Corporation for Assigned Names and Numbers.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, you can obtain one at https://mozilla.org/MPL/2.0/.
+#
+# Developed by Sinodun IT (sinodun.com)
+#
+# dsv-import-tsv <TSV file>
+#
+# Import a TSV file into ClickHouse.
+#
+# As a final guard against duplicating data, check to see if the first
+# record already exists, and if it does assume the file is already
+# present. We assume the first record exists if we find an existing record
+# with the same date, time in seconds and nanoseconds, node ID and query ID.
+# We check date and time in seconds first because that's MUCH quicker than
+# scanning for nanoseconds, which was what we did originally.
+#
+# Exit 0 on success, 1 on error, 2 on transient error, 99 on infrastructure
+# or setup error.
+#
+# This script is stuffed with bash-isms. Sorry, but it does make life
+# much easier.
+
+#set -x
+
+for cmd in clickhouse-client awk dsv-config dsv-log
+do
+    command -v $cmd > /dev/null 2>&1 || { echo "No $cmd." >&2; exit 99; }
+done
+
+set -o pipefail
+
+CKCLIENT=clickhouse-client
+DSVCONFIG=dsv-config
+DSVLOG="dsv-log -l warning"
+
+usage()
+{
+    echo "Usage: dsv-import-tsv <TSV file>" 1>&2
+    exit 1
+}
+
+if [[ $# -ne 1 ]]; then
+    usage
+fi
+file=$1
+
+# If file does not exist, it's been successfully dealt with.
+if [[ ! -f $file ]]; then
+    $DSVLOG "$file not found."
+    exit 0
+fi
+
+server=$($DSVCONFIG -r clickhouse import-server)
+if [[ $? -ne 0 ]]; then
+    echo "No ClickHouse import server configured." 1>&2
+    exit 99
+fi
+
+database=$($DSVCONFIG clickhouse database)
+if [[ $? -ne 0 ]]; then
+    echo "No ClickHouse database configured." 1>&2
+    exit 99
+fi
+
+ckuser=$($DSVCONFIG clickhouse user)
+if [[ $? -ne 0 ]]; then
+    echo "No ClickHouse user configured." 1>&2
+    exit 99
+fi
+
+ckpass=$($DSVCONFIG clickhouse password)
+if [[ $? -ne 0 ]]; then
+    echo "No ClickHouse password configured." 1>&2
+    exit 99
+fi
+
+querytable=$($DSVCONFIG clickhouse querytable)
+if [[ $? -ne 0 ]]; then
+    echo "No ClickHouse query table configured." 1>&2
+    exit 99
+fi
+
+packetcountstable=$($DSVCONFIG clickhouse packetcountstable)
+if [[ $? -ne 0 ]]; then
+    echo "No ClickHouse packet counts table configured." 1>&2
+    exit 99
+fi
+
+# Check for a header line, and if present check that the field
+# name in that header match what we expect.
+fieldnames=$(head -n 1 $file | awk -F '\t' "{printf \"%s:%s:%s:%s:%s\", \$1, \$2, \$3, \$4, \$23}")
+IFS=: read -r dat_name datim_name nanosecs_name nodeid_name qid_name <<< $fieldnames
+
+if [ "$dat_name" != "Date" ]; then
+    dat=$dat_name
+    datim=$datim_name
+    nanosecs=$nanosecs_name
+    nodeid=$nodeid_name
+    qid=$qid_name
+    tsvfmt="TabSeparated"
+else
+    if [ "$datim_name" != "DateTime" -o "$nanosecs_name" != "NanoSecondsSinceEpoch" -o "$nodeid_name" != "NodeID" -o "$qid_name" != "ID" ]; then
+        echo "Import data column names do not match expected." 1>&2
+        echo "$datim_name, $nanosecs_name, $nodeid_name, $qid_name." 1>&2
+        exit 99
+    fi
+    fields=$(head -n 2 $file | awk -F '\t' "NR==2 {print \$1, \$2, \$3, \$4, \$23}")
+    read -r dat datim nanosecs nodeid qid <<< $fields
+    tsvfmt="TabSeparatedWithNames"
+fi
+
+recs=$($CKCLIENT  --host "$server" --user "$ckuser" --password "$ckpass" --query="SELECT NodeID FROM $database.$querytable WHERE Date='$dat' AND DateTime=toDateTime($datim) AND NanoSecondsSinceEpoch=$nanosecs AND NodeID=$nodeid AND ID=$qid LIMIT 1")
+if [[ $? -ne 0 ]]; then
+    echo "ClickHouse connection failed on server $server." 1>&2
+    exit 2
+fi
+
+# If result not empty, the first record exists. Success!
+if [[ -n $recs ]]; then
+    $DSVLOG "$file first record already in database."
+    rm -f $file.info
+    exit 0
+fi
+
+# Insert with distributed sync. Helps ensure we don't race ahead of ClickHouse's
+# ability to digest incoming data.
+cat $file | $CKCLIENT --insert_distributed_sync=1 --host "$server" --user "$ckuser" --password "$ckpass" --query="INSERT INTO $database.$querytable FORMAT $tsvfmt"
+if [[ $? -ne 0 ]]; then
+    echo "ClickHouse import failed on server $server." 1>&2
+    exit 2
+fi
+
+if [[ -f $file.info ]]; then
+    cat $file.info | $CKCLIENT --insert_distributed_sync=1 --host "$server" --user "$ckuser" --password "$ckpass" --query="INSERT INTO $database.$packetcountstable FORMAT TabSeparated"
+    if [[ $? -ne 0 ]]; then
+        echo "ClickHouse packet count import failed on server $server." 1>&2
+        exit 2
+    fi
+    rm -f $file.info
+fi
+
+# Delay briefly on a successful import before trying the next.
+# Give ClickHouse a moment to get parts merged.
+sleep 0.2
+
+exit 0
+
+# Local Variables:
+# mode: sh
+# End:

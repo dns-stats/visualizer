@@ -1,0 +1,159 @@
+= dsv-import(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-import - scan the file store and add new jobs to the processing queue
+
+== SYNOPSIS
+
+*dsv-import* [_OPTION_]...
+
+== DESCRIPTION
+
+Scan the datastore and add new C-DNS files to the C-DNS processing queues.
+Normally this is used to scan `incoming` directories and so process new data,
+but it can also be used to reload the current processing queue in the event of
+a GearMan or server restart, or to re-process already processed C-DNS files
+to rebuild the database.
+
+This command must be run as the user owning the datastore, or `root`.
+
+The command assumes a filestore of C-DNS and derived files with this
+directory structure:
+----
+<server name>
+|- <node name>
+   |- incoming
+     |- pending
+   |- cbor
+     |- pending
+   |- pcap
+   |- error-<queue name>
+----
+
+Freshly arrived C-DNS files are placed in the `incoming` directory for the source
+node. On successful import, they are moved to the `cbor` directory.
+If PCAP is generated, it is stored in the `pcap` directory.
+If any input file fails processing by one of the Visualizer processing queues,
+it is moved to the `error-` directory for that queue.
+
+Before beginning processing, this process attempts to get an exclusive file
+lock on an import lockfile. If it cannot get that lock, it logs an error
+and exits. This ensures only one import job can run at once on a machine.
+If the lockfile is read-only, the import processes is frozen;
+again it logs an error and exits.
+
+When an incoming or re-load job is added to a queue, a link to the job file is
+made in a subdirectory `pending` below the source directory. These links track
+the files currently queued, and can be used to re-load the queue in the event of
+a GearMan or server restart.
+
+The file system scanning process adds files in reverse date order, so most recent
+first. The queuing processes cycles through the list of nodes, taking one job at
+a time from each node, if present. This ensures that no node can starve other
+nodes of processing.
+
+By default each C-DNS file generates only a job to convert the C-DNS file to
+TSV and import into the database. If a server filter description file is present,
+named either `dsv.filter` or (if not found) `inspector.filter` in the
+server directory, or a global filter description file in the directory above the
+server directory, the processing instructions therein are observed and the
+C-DNS file may also be converted to PCAP. Available
+instructions are:
+
+* `exclude_node`. Do not generate PCAP for the following node name or names.
+  Multiple node names are separated by spaces. Ignored if any nodes are specified
+  with `include_node`.
+* `include_node`. Generate PCAP for the following node name or names.
+  Multiple node names are separated by spaces. If any nodes are specified,
+  `exclude_node` is ignored.
+* `exclude_server`. Do not generate PCAP for the following server name or names.
+  Multiple server names are separated by spaces. Ignored if any servers are specified
+  with `include_server`.
+* `include_server`. Generate PCAP for the following server name or names.
+  Multiple server names are separated by spaces. If any servers are specified,
+  `exclude_node` is ignored.
+* `start_date`. Do not generate PCAP for files dated before the given date.
+   The date is specified as YYYY-MM-DD, YYYY-MM-DD HH:MM:SS,
+   or YYYYMMDD_HHMMSS.
+* `end_date`. Do not generate PCAP for files dated at or after the given date.
+   The date is specified as YYYY-MM-DD, YYYY-MM-DD HH:MM:SS,
+   or YYYYMMDD_HHMMSS.
+* `enable_pcap`. Generate PCAP by default. By default PCAP is not generated.
+  However, if this or any of the previous instructions are given, PCAP generation
+  is enabled for all files not excluded by server or node name or by date range.
+
+Processing instructions may also be given to control the import of data from C-DNS
+into Visualizer. Available instructions are:
+
+* `exclude_import`. Do not import data for the following node name or names.
+  Multiple node names are separated by spaces. Ignored if any nodes are specified
+  with `include_import`.
+* `include_import`. Import data for the following node name or names.
+  Multiple node names are separated by spaces. If any nodes are specified,
+  `exclude_import` is ignored. If none are specified, data is imported unless
+  the node name appears in `exclude_import`.
+* `exclude_server_import`. Do not import data for the following server
+  name or names. Multiple server names are separated by spaces. Ignored
+  if any servers are specified  with `include_import`.
+* `include_server_import`. Import data for the following server name or names.
+  Multiple server names are separated by spaces. If any servers are specified,
+  `exclude_server_import` is ignored. If none are specified, data is imported unless
+  the server name appears in `exclude_server_import`.
+
+Blank lines, and any line starting with zero or more spaces followed by `#` are ignored.
+
+For the purposes of import, the server and node names used in filters
+are those used in the filestore structure. If any server or node directory is
+renamed, filters referencing the server or node will need to be updated.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default `/etc/dns-stats-visualizer/dsv.conf`.
+
+*-s, --source* [_arg_]::
+  Source of new jobs. This option must be specified. Options are:
+   * `incoming`. Process jobs from the file store `incoming` directories. This is the
+   usual argument
+   * `cbor`. Re-process all files from the already processed `cbor` directories. This
+   mechanism can be used to reload the database.
+   * `pcap`. Re-generate PCAP for all files from the already processed `cbor`
+   directories. Node and server includes or excludes are observed, but no other
+   filter file instructions are observed.
+   * `pending`. Re-queue all jobs currently in `pending` directories.
+   * `error`. Re-queue all jobs in node `error` directories.
+   * `regen-error-tsv`. Re-queue TSV conversions from original C-DNS files for
+   all jobs in node `error-import-tsv` directories. If successful, delete the failing
+   TSV files.
+
+*--from* [_arg_]::
+  If re-processing `cbor` to reload the database or regnerate PCAP, ignore any files
+  named with a date prior to the given date,  specified as YYYY-MM-DD, or date
+  and time specified as YYYY-MM-DD HH:MM:SS or YYYYMMDD_HHMMSS.
+
+*--to* [_arg_]::
+  If re-processing `cbor` to reload the database or regnerate PCAP, ignore any files
+  named with a date at or after the given date,  specified as YYYY-MM-DD, or date
+  and time specified as YYYY-MM-DD HH:MM:SS or YYYYMMDD_HHMMSS.
+
+*-v, --verbose*::
+  Enable verbosity. Prints actions taken.
+
+*-n, --dry-run*::
+  If enabled, treats import as a trial run. All outputs are the same, but no real changes
+  are made.
+
+== EXIT STATUS
+
+Non-zero on any error.
+
+== SEE ALSO
+
+link:dsv-import-freeze.adoc[dsv-import-freeze(1)],
+link:dsv-import-thaw.adoc[dsv-import-thaw(1)],
+link:dsv.cfg.adoc[dsv.cfg(5)].

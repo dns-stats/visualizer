@@ -1,0 +1,5 @@
+[program:dsv_worker]
+command=/usr/bin/dsv-worker
+process_name=%(program_name)s_%(process_num)02d
+numprocs=5
+user=dsv

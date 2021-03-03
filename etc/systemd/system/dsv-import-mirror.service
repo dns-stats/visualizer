@@ -1,0 +1,12 @@
+[Unit]
+Description=DNS-STATS Visualizer Datastore Mirror service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/dsv-import-mirror /var/lib/dns-stats-visualizer/mirror *
+TimeoutStopSec=5
+Restart=on-failure
+User=dsv
+
+[Install]
+WantedBy=default.target

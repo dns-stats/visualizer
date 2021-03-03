@@ -1,0 +1,13 @@
+#!/bin/sh
+
+if which py3compile >/dev/null 2>&1; then
+        py3compile /usr/share/dns-stats-visualizer/python3/
+fi
+
+if [ -x /usr/bin/supervisorctl ]; then
+        /usr/bin/supervisorctl restart all
+fi
+
+#DEBHELPER#
+
+exit 0

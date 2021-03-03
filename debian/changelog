@@ -1,0 +1,5 @@
+dns-stats-visualizer (1.0.0-1) bionic; urgency=low
+
+  * Initial release.
+
+ -- Jim Hague <jim@sinodun.com>  Fri, 12 Feb 2021 15:09:00 +0000

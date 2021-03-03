@@ -1,0 +1,178 @@
+= dsv.cfg(5)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv.conf - Visualizer configuration file
+
+== DESCRIPTION
+
+A configuration file for Visualizer. The contents are in a format similar to Windows
+INI files; the start of a group is indicated by a line `[<group>]`, and individual
+entries are of the form `<entry>=<value>`.
+
+By default Visualizer applications look to load configuration from a succession
+of locations:
+
+* `/etc/dns-stats-visualizer/dsv.cfg`
+* `/etc/dns-stats-visualizer/private.cfg`
+* `~/.dsv.cfg`
+* `~/.dsv.private.cfg`
+
+If a configuration item is given in multiple locations, the last
+location in which it occurs sets the value used.
+
+In normal operation configuration is under `/etc/dns-stats-visualizer`. Typically most
+configuration is in world readable file `/etc/dns-stats-visualizer/dsv.cfg`.
+Sensitive configuration, such as passwords, is in `/etc/dns-stats-visualizer/private.cfg`,
+with file access permissions allowing reading only by selected users.
+
+The following subsections give the available settings for each configuration group.
+
+=== gearman
+
+*host* [_arg_]::
+  The GearMan server host. Default `localhost`.
+
+*port* [_arg_]::
+  The GearMan server port. Default 4730.
+
+=== pcap
+
+*compress* [_arg_]::
+  If _arg_ is not empty, compress output PCAP files using `xz`. Default `Y`.
+
+*compression-level* [_arg_]::
+  If compressing output PCAP, use compression level _arg_. Default `2`.
+
+*replace* [_arg_]::
+  If _arg_ is not empty, replace output PCAP files if regenerating them. Otherwise newer PCAP outputs will be named `-1` , `-2` etc. Default `Y`.
+
+*query-only* [_arg_]::
+  If _arg_ is not empty, include only query messages in PCAP. Default empty.
+
+*pseudo-anonymise* [_arg_]::
+  If _arg_ is not empty, pseudo-anonymise output PCAP files. Default empty.
+
+*pseudo-anonymisation-key* [_arg_]::
+  If _arg_ is not empty, pseudo-anonymise PCAP output using the key. Default empty.
+
+*pseudo-anonymisation-passphrase* [_arg_]::
+  If _arg_ is not empty, pseudo-anonymise PCAP output using the passphrase.
+  Default empty. If both a key and a passphrase are specified, the key is used.
+
+=== datastore
+
+*path* [_arg_]::
+  The path to the root of the file storage. Default `/var/lib/dns-stats-visualizer/cdns`.
+
+*user* [_arg_]::
+  The user owning the files in the datastore. Default `dsv`.
+
+*cdns_file_pattern* [_arg_]::
+  Glob pattern matching C-DNS files. Default `*.cdns.xz`.
+
+*tsv_file_pattern* [_arg_]::
+  Glob pattern matching TSV files. Default `*.tsv*`.
+
+=== postgres
+
+*host* [_arg_]::
+  The PostgreSQL server host. Default is empty string, which means a UNIX socket
+  connection to the local host.
+
+*user* [_arg_]::
+  The user to authenticate with when accessing Postgres. Default `dsv`.
+
+*password* [_arg_]::
+  The password to authenticate with when accessing Postgres. Default `dsv`.
+
+*database* [_arg_]::
+  The database to connect to when accessing Postgres. Default `dsv`.
+
+=== clickhouse
+
+*user* [_arg_]::
+  The user to authenticate with when accessing ClickHouse. Default `dsv`.
+
+*password* [_arg_]::
+  The password to authenticate with when accessing ClickHouse. Default `dsv`.
+
+*servers* [_arg_]::
+  A comma-separated list of the ClickHouse server hostnames. Default
+  `dsv-clickhouse1,dsv-clickhouse2,dsv-clickhouse3,dsv-clickhouse4`.
+
+*dbdir* [_arg_]::
+  The path to the root of the ClickHouse Visualizer table storage. Default `/var/lib/clickhouse`.
+
+*import-server* [_arg_]::
+  The name of the ClickHouse server to be used for Visualizer data import. Default
+  `dsv-clickhouse1`.
+
+*database* [_arg_]::
+  The name of the Visualizer database in ClickHouse. Default `dsv`.
+
+*querytable* [_arg]_::
+  The name of the combined Query/Response table into which raw data
+  should be inserted. Default `QueryResponse`.
+
+*packetcountstable* [_arg]_::
+  The name of the table into which raw packet counts
+  should be inserted. Default `PacketCounts`.
+
+=== rssac
+
+*grafana-url* [_arg_]::
+  The base URL for the Grafana instance from which to download plots for RSSAC
+  reporting. Default `https://localhost`.
+
+*load-time-threshold* [_arg_]::
+  The percentage of nodes that must respond for load time data to be valid. Default 95.
+
+*outdir* [_arg_]::
+  The directory into which to write RSSAC reports. Default `.`.
+
+*server* [_arg_]::
+  Capture RSSAC load time data for this server. Default `Z-Root`.
+
+*zone* [_arg_]::
+  Name of zone for SOA query when capturing RSSAC load time data. Default `.`.
+
+=== geo
+
+*url* [_arg_]::
+  The URL _arg_ from which to down MaxMind location data. If the URL includes `{licencekey}`,
+  that will be substituted with the configured MaxMind licence key.
+  Default `https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City-CSV&license_key={licencekey}&suffix=zip`.
+
+*licencekey* [_arg_]::
+  The licence key _arg_  to use when downloading MaxMind location data.
+  Default `XXXXXXXXXXXX`, which is not a valid licence key.
+
+=== Other sections
+
+Other sections in the config file control logging. Details can be teased out of
+https://docs.python.org/3/howto/logging.html.
+
+== EXAMPLE
+
+----
+[datastore]
+path=/var/lib/dns-stats-visualizer/cdns/
+cdns_file_pattern=*.cdns.xz
+user=dsv
+
+[postgres]
+user=dsv
+password=dsv
+
+[geo]
+licencekey=XXXXXXXXXXXX
+----
+
+== EXIT STATUS
+
+0 on success, non-zero on any error.

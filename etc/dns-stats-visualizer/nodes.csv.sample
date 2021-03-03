@@ -1,0 +1,58 @@
+######################### NODES CONFIGURATION FILE ###################
+# Format is:     server-name, node-name, node-region, node-country,
+#                node-city,node-instance,[node-ip],[node-visibility]
+#
+# '#' starts a comment. Any line that is blank after comments and leading
+# or trailing spaces are removed is ignored.
+#
+# Server name, node name and instance fields can contain alphanumeric
+# characters, full stops (.) and hyphens (-) only.
+# Server name and node name can each contain an alternate to the primary
+# name. The alternate name is separated from the primary name by '|'.
+# E.g. 'NewName|OldName'.
+#
+# server-name     - The primary name and any alternate name must be unique.
+#                   Either the primary name or the alternate name must match
+#                   the name used in the data directory path for uploaded files.
+#                   If an alternate name is given, it must be given for
+#                   every node belonging to the server.
+# node-name       - The primary name and any alternate name must be unique for a
+#                   given server. Either the primary name or the alternate name
+#                   must match the name used in the data directory path for
+#                   uploaded files.
+# node-region     - The region that the node is located in.
+# node-country    - The country that the node is located in.
+# node-city       - The city that the node is located in.
+# node-instance   - This is used to collect nodes into subgroups called
+#                   'Instances' (e.g. nodes within the same city) for
+#                   convenient selection and plotting. It should be unique
+#                   for a given country.
+# node-ip         - The management IP address of the node (IPv4 or IPv6)
+#                   It is optional and if not specified is left blank. This is
+#                   required if RSSAC load-time/zone-size data is to be
+#                   collected.
+# node-visibility - This field determines the Grafana dashboards that include
+#                   the node. It is optional. If present, it must contain
+#                   one of the following values:
+#                       all      - the node appears in all dashboards. This is
+#                                  the default used if no value is given.
+#                       test     - the node only appears in test
+#                                  Grafana dashboards, not in the main ones.
+#                       main     - the node only appears in the main
+#                                  Grafana dashboards, not in the test ones.
+#                       none     - the node does not appear in any Grafana
+#                                  dashboards.
+#
+# Examples:
+#
+#Server-A,Node-1|Node-a,Region-1,Country-1,City-1,Instance-1,10.0.0.2
+#Server-A,Node-2,Region-1,Country-1,City-2,Instance-2,
+#Server-A,Node-3,Region-1,Country-2,City-3,Instance-3,
+#Server-A,Node-4,Region-1,Country-2,City-3,Instance-3,
+#Server-A,Node-5,Region-2,Country-3,City-4,Instance-4,,none
+#Server-A,Node-6,Region-2,Country-3,City-4,Instance-4,,test
+#Server-A,Node-7,Region-3,Country-3,City-4,Instance-5,10.0.0.3
+#Server-B|Server-2,Node-1,Region-1,Country-4,City-5,Instance-6,
+#Server-B|Server-2,Node-2,Region-2,Country-5,City-6,Instance-7,
+######################################################################
+#TestServer,TestNode,TestRegion,TestCountry,TestCity,TestInstance

@@ -1,0 +1,9 @@
+[Unit]
+Description=DNS-STATS Visualizer RSSAC Notify Socket
+PartOf=dsv-rssac.service
+
+[Socket]
+ListenDatagram=[::]:53
+
+[Install]
+WantedBy=sockets.target

@@ -1,0 +1,43 @@
+= dsv-status(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-status - print the current Visualizer queue status
+
+== SYNOPSIS
+
+*dsv-status* [_OPTION_]... [_STATUS ITEM_]...
+
+== DESCRIPTION
+
+Display the current Visualizer queue status. You can choose to display individual
+status items for a particular queue, all items for a particular queue, or (if no
+arguments are given) all items for all queues.
+
+You can select from the following status items:
+
+* `len`. The number of items in the queue.
+* `running`. The number of items in the queue currently being processed.
+* `workers`. The number of worker processes configured to run jobs from this queue.
+* `frozen`. Whether the queue is currently running or frozen.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+*-q, ---queue* [_arg_]::
+  The name of the queue to show details for. Possible named are `cdns-to-tsv`,
+  `cdns-to-pcap` and `import-tsv`. If not specified, show details for all queues.
+
+== EXIT STATUS
+
+Non-zero on any error.
+
+== SEE ALSO
+
+link:dsv.cfg.adoc[dsv.cfg].

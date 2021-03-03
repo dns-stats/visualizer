@@ -1,0 +1,39 @@
+= dsv-rssac-daemon(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-rssac-daemon - listen for NOTIFY message for a zone
+
+== SYNOPSIS
+
+*dsv-rssac-daemon* [_OPTION_]...
+
+== DESCRIPTION
+
+Started by `systemd`, listens for NOTIFY messages for the zone configured
+by `rssac.notify-zone`. When notify is received, extracts the serial number
+and runs `dsv-rssac-notify`, passing the serial number as the only
+argument.
+
+As installed, this configures `systemd` to open a socket on port 53 listening
+on all interfaces. It passes this socket to `dsv-rssac-daemon`.
+See `/lib/systemd/system/dsv--rssac.socket` and
+override it with an entry in `/etc/systemd/system` if you want to change
+the port or restrict listening to specific interfaces.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+== EXIT STATUS
+
+Non-zero on any error.
+
+== SEE ALSO
+
+link:dsv-rssac-notify.adoc[dsv-rssac-notify], link:dsv.cfg.adoc[dsv.cfg].

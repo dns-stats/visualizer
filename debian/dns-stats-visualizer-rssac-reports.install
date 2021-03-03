@@ -1,0 +1,2 @@
+bin/dsv-rssac-reports usr/bin
+src/python3/dsv/commands/rssac_reports.py usr/share/dns-stats-visualizer/python3/dsv/commands

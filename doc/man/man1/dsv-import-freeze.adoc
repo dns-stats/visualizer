@@ -1,0 +1,42 @@
+= dsv-import-freeze(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-import-freeze - freeze Visualizer data import
+
+== SYNOPSIS
+
+*dsv-import-freeze* [_OPTION_]...
+
+== DESCRIPTION
+
+Freeze Visualizer import. All subsequent calls to `dsv-import` will
+exit with the message _Import is frozen_.
+
+This command must be run as the user owning the datastore, or `root`.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+== EXAMPLE
+
+----
+$ dsv-import-freeze
+Visualizer import frozen.
+----
+
+== EXIT STATUS
+
+0 on success, non-zero on any error or import already frozen.
+
+== SEE ALSO
+
+link:dsv-import-thaw.adoc[dsv-import-thaw(1)],
+link:dsv-import.adoc[dsv-import(1)],
+link:dsv.cfg.adoc[dsv.cfg(5)].

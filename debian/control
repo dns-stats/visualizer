@@ -1,0 +1,56 @@
+Source: dns-stats-visualizer
+Standards-Version: 3.9.7
+Section: net
+Priority: optional
+Maintainer: Jim Hague <jim@sinodun.com>
+Homepage: https://github.com/Sinodun/dns-stats-visualizer
+Build-Depends: debhelper (>=9), asciidoctor, coreutils, findutils, make, python3 (>= 3.5), python3-attr, python3-dnspython, python3-psycopg2
+
+Package: dns-stats-visualizer-base
+Architecture: all
+Depends: python3 (>= 3.5), ${misc:Depends}
+Suggests: dns-stats-visualizer-doc
+Description: Base DNS STATS Visualizer infrastructure.
+ Base infrastructure for DNS STATS Visualizer.
+
+Package: dns-stats-visualizer-import
+Architecture: all
+Depends: dns-stats-visualizer-base, bash, python3-gear, python3-psycopg2, clickhouse-client, libmaxminddb0, geoipupdate, gearman-job-server, gearman-tools, dns-stats-inspector (>= 1.1.0), ${misc:Depends}
+Description: Data import for DNS STATS Visualizer
+ Commands required for DNS STATS Visualizer data import.
+
+Package: dns-stats-visualizer-import-mirror
+Architecture: all
+Depends: dns-stats-visualizer-base, bash, inotify-tools, ${misc:Depends}
+Description: Mirror incoming datastore files
+ Utility to assist in mirroring incoming datastore files.
+
+Package: dns-stats-visualizer-clickhouse-server
+Architecture: all
+Depends: dns-stats-visualizer-base, clickhouse-client, clickhouse-server (>= 19.16), odbcinst, odbc-postgresql, unixodbc, ${misc:Depends}
+Description: DNS STATS Visualizer support for ClickHouse servers
+ Commands required for DNS STATS Visualizer ClickHouse servers.
+
+Package: dns-stats-visualizer-rssac-reports
+Architecture: all
+Depends: dns-stats-visualizer-base, ${misc:Depends}
+Description: DNS STATS Visualizer RSSAC reports.
+ Produce DNS STATS Visualizer RSSAC reports.
+
+Package: dns-stats-visualizer-rssac-notify
+Architecture: all
+Depends: dns-stats-visualizer-base, python3-dnspython, python3-systemd, ${misc:Depends}
+Description: DNS STATS Visualizer RSSAC notify daemon.
+ DNS STATS Visualizer daemon for monitoring RSSAC zone info and updating DNS STATS Visualizer database.
+
+Package: dns-stats-visualizer-grafana-main
+Architecture: all
+Depends: grafana (>= 6.4), libx11-6, libx11-xcb1, libxcomposite1, libxcursor1, libxdamage1, libxext6, libxfixes3, libxi6, libxrender1, libxtst6, libglib2.0-0, libnss3, libcups2, libdbus-1-3, libxss1, libxrandr2, libgtk-3-0, libgtk-3-0, libasound2, coreutils, ${misc:Depends}
+Description: DNS STATS Visualizer Grafana main site dashboards and datasource.
+ DNS STATS Visualizer main site dashboards and other provisioning for Grafana.
+
+Package: dns-stats-visualizer-doc
+Architecture: all
+Depends: ${misc:Depends}
+Description: DNS STATS Visualizer documentation
+ DNS STATS Visualizer documentation in HTML format.

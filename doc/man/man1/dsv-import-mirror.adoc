@@ -1,0 +1,38 @@
+= dsv-import-mirror(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-import-mirror - create parallel datastore contining hard links to new incoming files
+
+== SYNOPSIS
+
+*dsv-import-mirror* _TARGET_ROOT_ _SERVER_NODE_PATTERN_ [_SERVER_NODE_PATTERN_]...
+
+== DESCRIPTION
+
+A server process that monitors new files in datastore `incoming` directories and
+create a parallel directory structure containing hard links to the new files.
+
+_TARGET_ROOT_ specifies the root directory of the mirroring directory structure.
+
+_SERVER_NODE_PATTERN_ gives a *glob(7)* pattern specifying server
+and node directories to be mirrored.
+
+== EXAMPLE
+
+----
+$ dsv-import-mirror /opt/data/outgoing_staging Server/*
+----
+
+== EXIT STATUS
+
+0 on success, non-zero on any error or import already frozen.
+
+== SEE ALSO
+
+link:dsv.cfg.adoc[dsv.cfg(5)],
+glob(7).

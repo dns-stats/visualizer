@@ -1,0 +1,14 @@
+#!/bin/sh
+
+if which py3compile >/dev/null 2>&1; then
+        py3compile /usr/share/dns-stats-visualizer/python3/
+fi
+
+for i in node node_server node_region node_country node_city node_instance
+do
+    rm -f /etc/clickhouse-server/dictionaries.d/${i}.xml
+done
+
+#DEBHELPER#
+
+exit 0

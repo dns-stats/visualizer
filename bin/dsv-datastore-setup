@@ -1,0 +1,48 @@
+#!/bin/sh
+#
+# Copyright 2018, 2021 Internet Corporation for Assigned Names and Numbers.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, you can obtain one at https://mozilla.org/MPL/2.0/.
+#
+# Developed by Sinodun IT (sinodun.com)
+#
+# Create PostGres dsv user and dsv database.
+
+command -v adduser > /dev/null 2>&1 || { echo "'adduser' not found, cannot proceed." >&2 ; exit 2; }
+command -v psql > /dev/null 2>&1 || { echo "'psql' not found, cannot proceed." >&2 ; exit 2; }
+command -v sudo > /dev/null 2>&1 || { echo "'sudo' not found, cannot proceed." >&2 ; exit 2; }
+
+err=0
+
+# Create system user 'dsv' if not already present.
+echo "Create system user 'dsv'."
+if grep --quiet dsv /etc/passwd; then
+    echo "'dsv' user already exists."
+else
+    if sudo adduser --system --group --gecos "DNS-STATS Visualizer" --disabled-login dsv; then
+        echo "Added user 'dsv'."
+    else
+        echo "Adding user 'dsv' failed."
+        err=$?
+    fi
+fi
+
+# Create Postgres 'dsv' user.
+echo "Create Postgres user 'dsv'."
+if sudo -u postgres psql -c "CREATE USER dsv PASSWORD 'dsv';"; then
+    echo "Created Postgres user 'dsv'."
+else
+    err=$?
+fi
+
+# Create Postgres 'dsv' database.
+echo "Create Postgres database 'dsv'."
+if sudo -u postgres psql -c "CREATE DATABASE dsv OWNER dsv;"; then
+    echo "Created Postgres database 'dsv'."
+else
+    err=$?
+fi
+
+exit $err

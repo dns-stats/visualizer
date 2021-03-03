@@ -1,0 +1,8 @@
+bin/dsv-rssac-daemon usr/bin
+bin/dsv-rssac-daemon-tester usr/bin
+bin/dsv-rssac-notify usr/bin
+etc/systemd/system/dsv-rssac.service lib/systemd/system
+etc/systemd/system/dsv-rssac.socket lib/systemd/system
+src/python3/dsv/commands/rssac_daemon.py usr/share/dns-stats-visualizer/python3/dsv/commands
+src/python3/dsv/commands/rssac_daemon_tester.py usr/share/dns-stats-visualizer/python3/dsv/commands
+src/python3/dsv/commands/rssac_notify.py usr/share/dns-stats-visualizer/python3/dsv/commands

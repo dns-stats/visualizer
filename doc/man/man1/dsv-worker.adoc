@@ -1,0 +1,71 @@
+= dsv-worker(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-worker - process jobs from Visualizer queues
+
+== SYNOPSIS
+
+*dsv-worker* [_OPTION_]...
+
+== DESCRIPTION
+
+Process jobs from Visualizer job queue. If no jobs are available, wait indefinitely
+for a job to be added to a queue.
+
+This command must be run as the user owning the datastore, or `root`.
+
+dsv-worker processes jobs from three queues; `cdns-to-tsv`, `cdns-to-pcap`
+and `import-tsv`. A job is processed by reading the job argument. The job
+argument is the path of the file to be processed. This may be optionally followed
+by `|` and the retry count of the job.
+
+The job is executed by passing its file path argument to an external
+process named `dsv-<queue name>`.
+
+When a job is placed on the queue, a hard link to the job argument (the file path to
+process) is created in a subdirectory `pending` of the source directory.
+
+On completion, the external process exit code is examined.
+
+[start=0]
+. The job succeeded. Unlink the pending link, and inform GearMan the job is complete.
+. A permanent failure. Move the link into a directory `error` under the node
+   directory and mark the job failed in GearMan. Log the failure and the job
+   standard output and standard error.
+. A transient failure. If the retry limit has been reached, handle as a permanent
+   failure. Otherwise re-add the job to the job queue after incrementing the
+   retry counter. Log the transient failure and the job standard output and standard
+   error.
+. The job succeeded, but no unlink is required. Inform GearMan the job is complete.
+
+Any other return code is logged as an infrastructure error and *dsv-worker* exits.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+*---fail-delay* [_arg_]::
+  The number of seconds to delay when a job fails before processing the next
+  job. Default 5.
+
+*---max-retries* [_arg_]::
+  The number of times to retry a job that fails with a transient failure error code
+  before treating the failure as permanent. Default 5.
+
+*---ignore-queue* [_arg_]::
+  Do not register to process jobs on queue _arg_. This option may be specified
+  multiple times.
+
+== EXIT STATUS
+
+Non-zero on any error.
+
+== SEE ALSO
+
+link:dsv.cfg.adoc[dsv.cfg].

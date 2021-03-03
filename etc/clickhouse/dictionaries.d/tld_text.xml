@@ -1,0 +1,35 @@
+<dictionaries>
+  <comment>TLD text metadata</comment>
+  <dictionary>
+    <name>tld_text</name>
+    <source>
+      <odbc>
+        <connection_string>DSN=dsv</connection_string>
+        <table>tld_text</table>
+      </odbc>
+    </source>
+    <lifetime>300</lifetime>
+    <layout>
+      <complex_key_hashed/>
+    </layout>
+    <structure>
+      <key>
+        <attribute>
+          <name>name</name>
+          <type>String</type>
+          <null_value/>
+        </attribute>
+      </key>
+      <attribute>
+        <name>tld_type</name>
+        <type>String</type>
+        <null_value>Unknown</null_value>
+      </attribute>
+      <attribute>
+        <name>ulabel</name>
+        <type>String</type>
+        <null_value/>
+      </attribute>
+    </structure>
+  </dictionary>
+</dictionaries>

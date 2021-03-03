@@ -1,0 +1,4 @@
+grafana/dashboards/main-site var/lib/grafana/dashboards
+grafana/plugins/natel-plotly-panel var/lib/grafana/plugins
+provisioning/dashboards/main-site.yml etc/grafana/provisioning/dashboards
+provisioning/datasources/dsv-main.yml.sample etc/grafana/provisioning/datasources

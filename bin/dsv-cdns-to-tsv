@@ -1,0 +1,128 @@
+#!/bin/bash
+#
+# Copyright 2018-2021 Internet Corporation for Assigned Names and Numbers.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, you can obtain one at https://mozilla.org/MPL/2.0/.
+#
+# Developed by Sinodun IT (sinodun.com)
+#
+# dsv-cdns-to-tsv <compressed C-DNS file>
+#
+# Convert a C-DNS file to (potentially) multiple TSV files in the same
+# directory as the C-DNS file. Add these files to the job queue import-tsv.
+#
+# If the input file name ends '.xz', decompress first.
+#
+# The C-DNS file will be in a directory <server>/<node>/<something>/pending.
+#
+# On successful conversion, give exit code 0. Otherwise if anything goes
+# wrong with decompression and conversion, there doesn't seem any likelihood
+# it's going to be temporary, so fail with exit code 1. Finally,
+# if we're missing necessary required executables, that's an
+# infrastructure/setup error, so exit with error code 99.
+#
+# This script is stuffed with bash-isms. Sorry, but it does make life
+# much easier.
+
+#set -x
+
+for cmd in inspector xz cat awk dsv-find-node-id dsv-queue dsv-log
+do
+    command -v $cmd > /dev/null 2>&1 || { echo "No $cmd." >&2; exit 99; }
+done
+
+set -o pipefail
+
+TEMPLATE="/usr/share/dns-stats-visualizer/sql/clickhouse/tsv.tpl"
+if [[ ! -f $TEMPLATE ]]; then
+    # Check old location for file.
+    TEMPLATE="/etc/dns-stats-visualizer/tsv-clickhouse.tpl"
+    if [[ ! -f $TEMPLATE ]]; then
+        echo "Template file missing." >&2
+        exit 99
+    fi
+fi
+
+INSPECTOR="inspector --output-format template --template $TEMPLATE"
+XZ="xz --decompress --stdout"
+DSVLOG="dsv-log -l warning"
+
+ADDTSVQUEUE="dsv-queue -q import-tsv"
+
+GETPACKETINFO="awk -f /usr/share/dns-stats-visualizer/sql/clickhouse/info.awk"
+
+usage()
+{
+    echo "Usage: dsv-cdns-to-tsv <C-DNS file>" 1>&2
+    exit 1
+}
+
+if [[ $# -ne 1 ]]; then
+    usage
+fi
+file=$1
+
+dir=$(dirname $file)
+dirname=$(basename $dir)
+ndir=$dir
+if [[ "$dirname" = "pending" ]]; then
+    ndir=$(dirname $ndir)
+fi
+nodedir=$(dirname $ndir)
+nodename=$(basename $nodedir)
+
+serverdir=$(dirname $nodedir)
+servername=$(basename $serverdir)
+
+name=$(basename $file)
+basename=${name%.xz}
+
+error()
+{
+    if [[ -n $1 ]]; then
+        echo $1 1>&2
+    fi
+    rm -f $dir/$basename.tsv* $dir/$basename.info
+    exit 1
+}
+
+# Look up server/nodename in Postgres and find its nodeID.
+nodeid=$(dsv-find-node-id $servername $nodename)
+if [[ -z $nodeid ]]; then
+    error "Can't find server $servername node $nodename"
+fi
+
+# If file does not exist it's been successfully dealt with.
+if [[ ! -f $file ]]; then
+    $DSVLOG "$file not found."
+    exit 0
+fi
+
+if [[ $name != $basename ]]; then
+    decomp=$XZ
+else
+    decomp=cat
+fi
+
+trap "error Interrupted" HUP INT TERM
+
+if ! $decomp $file | $INSPECTOR --output $dir/$basename.tsv --value node=$nodeid --report-info > $dir/$basename.info; then
+    error "Error converting file"
+fi
+
+if ! $GETPACKETINFO -v node_id=$nodeid $dir/$basename.info > $dir/$basename.tsv.info; then
+    rm -f $dir/$basename.tsv.info
+fi
+rm -f $dir/$basename.info
+
+if ! $ADDTSVQUEUE $dir/$basename.tsv; then
+    error "Error adding TSV file $dir/$basename.tsv to import queue"
+fi
+
+exit 0
+
+# Local Variables:
+# mode: sh
+# End:

@@ -1,0 +1,39 @@
+apiVersion: 1
+
+providers:
+- name: 'Timelines'
+  orgId: 1
+  folder: 'Timelines'
+  type: file
+  disableDeletion: false
+  editable: false
+  updateIntervalSeconds: 10 #how often Grafana will scan for changed dashboards
+  options:
+    path: /var/lib/grafana/dashboards/main-site/timelines
+- name: 'Other metrics'
+  orgId: 1
+  folder: 'OtherMetrics'
+  type: file
+  disableDeletion: false
+  editable: false
+  updateIntervalSeconds: 10 #how often Grafana will scan for changed dashboards
+  options:
+    path: /var/lib/grafana/dashboards/main-site/other-metrics
+- name: 'Other dashboards'
+  orgId: 1
+  folder: 'OtherDashboards'
+  type: file
+  disableDeletion: false
+  editable: false
+  updateIntervalSeconds: 10 #how often Grafana will scan for changed dashboards
+  options:
+    path: /var/lib/grafana/dashboards/main-site/other
+- name: 'Public Site'
+  orgId: 1
+  folder: ''
+  type: file
+  disableDeletion: true
+  editable: false
+  updateIntervalSeconds: 10 #how often Grafana will scan for changed dashboards
+  options:
+    path: /var/lib/grafana/dashboards/main-site/menu

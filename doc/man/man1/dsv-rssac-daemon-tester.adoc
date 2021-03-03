@@ -1,0 +1,43 @@
+= dsv-rssac-daemon-tester(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-rssac-daemon-tester - send a NOTIFY message for a zone
+
+== SYNOPSIS
+
+*dsv-rssac-daemon-tester* [_OPTION_]...
+
+== DESCRIPTION
+
+Send a DNS NOTIFY message for a zone.
+This is a utility to aid troubleshooting of the Visualizer RSSAC daemon.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+*-s, --server* [_arg_]::
+  The server to send the message to. Default is `localhost`.
+
+*-p, --port* [_arg_]::
+  The port to send the message to. Default is 53.
+
+*-n, --serial* [_arg_]::
+  The zone serial number to send. Required option.
+
+*-z, --zone* [_arg_]::
+  The zone to send. Required option.
+
+== EXIT STATUS
+
+Non-zero on any error.
+
+== SEE ALSO
+
+link:dsv-rssac-daemon.adoc[dsv-rssac-daemon], link:dsv.cfg.adoc[dsv.cfg].

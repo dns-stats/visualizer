@@ -1,0 +1,100 @@
+= dsv-nodes-update(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-nodes-update - update Visualizer node details from file
+
+== SYNOPSIS
+
+*dsv-nodes-update* [_OPTION_]... _NODES FILE_
+
+== DESCRIPTION
+
+Read node information from a CSV file and update the node information in
+the Postgres database.
+
+The input CSV file must contain the following fields:
+
+1. The server name(s). Mandatory.
+2. The node name(s). Mandatory.
+3. The node region name. Mandatory.
+4. The node country name. Mandatory.
+5. The node city name. Mandatory.
+6. The node instance name. Mandatory.
+7. The node service address. Optional.
+8. Visibility value for the node. Optional.
+
+Any additional fields are ignored.
+
+=== Node service address
+
+If no node service address is given, the node is not used in determining zone load times.
+
+=== Visibility values
+
+The node visibility value determines whether a node is included or not included in
+Grafana dashboards.
+
+*all*::
+  The node is included on all dashboards. This is the default if no visibility value
+  is specified.
+
+*test*::
+  The node is included on only the test dashboards. It is not included in main
+  dashboards.
+
+*main*::
+  The node is included on only the main dashboards. It is not included in test
+  dashboards.
+
+*none*::
+  The node is not included on any dashboards.
+
+=== Alternate names
+
+In the case of server name and node name, an optional alternate name may be
+given in addition to the primary name by separating it from the primary name with
+a | character. The primary name is always the name displayed, but the alternate
+names are recognised when looking up node IDs with *dsv-find-node-id(1)*.
+
+The following line is an example input line from a CSV file.
+
+----
+server|altserver,name|altname,region,country,city,instance,169.254.0.1
+----
+
+Server, node and instance names can contain only alphanumeric characters,
+`.` and `-`.
+
+Rows from the input file are processed in sequence. If any row contains the same
+server or node name as a previous row, the server or node data will be updated
+to the value in the row, and the values in the previous row will be discarded.
+If supplying alternate names for a server, therefore, the alternate name must appear
+in the last record containing the server. To avoid confusion, specifying the
+alternate name for all lines containing the server is recommended.
+
+A server or a node can be renamed by initially giving the new name as an alternate
+name, and then after that is successfully updated removing the old name.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+== BUGS
+
+There is currently no way to remove a node, This is perhaps not a bad thing,
+as it ensures that any historic node data in the Visualizer database will always have
+associated node details.
+
+== EXIT STATUS
+
+Non-zero on any error.
+
+== SEE ALSO
+
+link:dsv-find-node-id.adoc[dsv-find-node-id],link:dsv.cfg.adoc[dsv.cfg].

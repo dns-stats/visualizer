@@ -1,0 +1,31 @@
+<dictionaries>
+  <comment>System info</comment>
+  <dictionary>
+    <name>sysinfo</name>
+    <source>
+      <executable>
+        <command>dsv-clickhouse-sys-info</command>
+        <format>TabSeparated</format>
+      </executable>
+    </source>
+    <lifetime>1</lifetime>
+    <layout>
+      <complex_key_cache>
+        <size_in_cells>20</size_in_cells>
+      </complex_key_cache>
+    </layout>
+    <structure>
+      <key>
+        <attribute>
+          <name>item</name>
+          <type>String</type>
+        </attribute>
+      </key>
+      <attribute>
+        <name>value</name>
+        <type>String</type>
+        <null_value></null_value>
+      </attribute>
+    </structure>
+  </dictionary>
+</dictionaries>

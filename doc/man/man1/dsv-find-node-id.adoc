@@ -1,0 +1,32 @@
+= dsv-find-node-id(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-find-node-id - get Visualizer node ID for a node server
+
+== SYNOPSIS
+
+*dsv-find-node-id* [_OPTION_]... _SERVERNAME_ _NODENAME_
+
+== DESCRIPTION
+
+Find the node ID of a Visualizer node, given the server name and the node name.
+If an alternate server or node name is specified in Postgres, either the primary
+or the alternate name may be used. See *dsv-nodes-update(1)*.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+== EXIT STATUS
+
+0 on success, non-zero on any error.
+
+== SEE ALSO
+
+link:dsv-nodes-update.adoc[dsv-nodes-update],link:dsv.cfg.adoc[dsv.cfg].

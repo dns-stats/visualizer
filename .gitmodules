@@ -1,0 +1,12 @@
+[submodule "submodule.tools/grafanalib.path"]
+	path = tools/grafanalib
+	url = https://github.com/weaveworks/grafanalib
+	branch = master
+[submodule "submodule.tools/natel-plotly-panel.path"]
+	path = tools/natel-plotly-panel
+	url = https://github.com/Sinodun/grafana-plotly-panel
+	branch = dist
+[submodule "submodule.tools/clickhouse-driver.path"]
+	path = tools/clickhouse-driver
+	url = https://github.com/Sinodun/clickhouse-driver.git
+	branch = purepython3-notz

@@ -1,0 +1,25 @@
+<yandex>
+  <!-- Define 'dsv' cluster for use in distributed DDL queries. -->
+  <remote_servers>
+    <dsv>
+      <shard>
+        <weight>100</weight>
+        <internal_replication>true</internal_replication>
+        <replica>
+          <host>dsv-clickhouse</host>
+          <port>9000</port>
+        </replica>
+      </shard>
+      <!-- Add further hosts for clusters
+      <shard>
+        <weight>100</weight>
+        <internal_replication>true</internal_replication>
+        <replica>
+          <host>dsv-clickhouse2</host>
+          <port>9000</port>
+        </replica>
+      </shard>
+      -->
+    </dsv>
+  </remote_servers>
+</yandex>

@@ -1,0 +1,486 @@
+== Developing
+
+=== Source code
+
+==== Pre-requisites
+
+===== Python version
+
+Visualizer commands and the build process for Grafana dashboards use Python.
+Python3 is used throughout. As the reference system is Ubuntu Bionic, you should
+assume the available Python version is Python 3.6.9.
+
+===== Documentation
+
+Documentation is built using https://asciidoctor.org/[AsciiDoctor].
+This is available on Bionic in package `asciidoctor`.
+
+Documentation PDF is generated with
+https://asciidoctor.org/docs/asciidoctor-pdf/[AsciiDoctor PDF].
+On Bionic, this must be installed as a Ruby gem following the instructions
+on the AsciiDoctor PDF website. It is packaged on later Ubuntu releases
+as `ruby-asciidoctor-pdf`.
+
+==== Installing
+
+You can obtain Visualizer code from the master Git repository at
+https://github.com/dns-stats/visualizer.
+
+Visualizer uses Git submodules to include code from three other
+repositories. These repositories are:
+
+.Visualizer sub-modules
+[cols="1s,3a"]
+|===
+| https://github.com/weaveworks/grafanalib[Grafanalib]
+| Grafana dashboards are designed interactively and saved as JSON files.
+  Grafanalib allows JSON to be produced using Python scripts. Common items
+  across dashboards can be generated in shared code, and the source Pythion
+  scripts versioned and managed.
+
+| https://github.com/Sinodun/grafana-plotly-panel[Grafana Plotly plugin]
+| A modified version of the standard Grafana Plotly plugin, this Grafana
+ plugin adds Plotly bar charts to the available plots and enables different
+ plot traces to be built from query data.
+
+| https://github.com/Sinodun/clickhouse-driver[Python ClickHouse client]
+| A modified version of the Python ClickHouse driver, changed to be pure Python
+ for ease of distribution.
+|===
+
+After cloning the repository, you need to check out the submodules:
+
+[source,console]
+----
+$ git clone https://github.com/dns-stats/visualizer.git
+$ git submodule update --init
+----
+
+==== Organisation
+
+.Repository sub-directories
+[cols="1s,3a"]
+|===
+| `bin`
+| Queue processing scripts and the `dsv` command, plus soft links for the full name
+  for each command. For example, `dsv-status` is linked to `dsv`, which in turn
+  determins the command to run by inspecting the name used to run it.
+
+Commands may be run directly from the source tree by running them from `bin`.
+
+| `debian`
+| https://wiki.debian.org/HowToPackageForDebian[Debian packaging directory].
+
+| `doc`
+| Documentation. All documentation source is in AsciiDoctor `.adoc` files.
+
+| `etc`
+| Sample configuration files.
+
+| `grafana`
+| Source and build tools for all Grafana dashboards.
+
+| `sql`
+| DDL files for PostgreSQL and ClickHouse.
+
+| `src`
+| Python source for all Visualizer commands.
+
+| `tests`
+| Tests for Visualizer commands.
+
+| `tools`
+| Third-party tools used in Visualizer.
+|===
+
+==== Building
+
+Building Visualizer requires https://www.gnu.org/software/make/[GNU Make].
+On Bionic, this is the standard `make`. On other systems it may be installed as `gmake`.
+
+The following make targets are available:
+
+.Make targets
+[cols="1a,3a"]
+|===
+| `all`
+| Build all manual pages (man page and HTML output), and other documentation (HTML output),
+  and all Grafana dashboard JSON files. This is the default target.
+
+| `doc`
+| Build all manual pages (man page and HTML output), and other documentation (HTML output).
+
+| `pdf`
+| Build all manual pages and other documentation (PDF output).
+
+| `json`
+| Buidl all Grafana dashboard JSON files.
+
+| `deb`
+| Build man pages (man page output), other documentation (HTML output) and all Grafana
+  dashboard JSON files. Run all tests, and if they pass build Debian install packages.
+  The package version and reported system version in dashboards is taken from
+  `debian/changelog`.
+
+| `test`
+| Run tests.
+
+| `pylint`
+| Run https://www.pylint.org/[PyLint] over the code for Visualizer commands.
+
+| `clean`
+| Delete all build products.
+
+| `distclean`
+| Remove all build products and all dependency files.
+|===
+
+=== Adding new aggregations
+
+All aggregation for aggregated tables in Visualizer is done by ClickHouse when fresh
+data is inserted into the raw query/response table.
+
+The essential mechanism to creating a a materialized view onto the raw data table
+selecting data from the raw table to an aggregating table.
+The individual rows are aggregated together by the table storage engine. Typically
+this is either a
+https://clickhouse.tech/docs/en/engines/table-engines/mergetree-family/summingmergetree/[SummingMergeTree]
+or an
+https://clickhouse.tech/docs/en/engines/table-engines/mergetree-family/aggregatingmergetree/[AggregatingMergeTree].
+For details of both these, consult the linked ClickHouse documentation.
+When the data is selected for aggregation, the timestamp (`DateTime` field) is
+set to the start of the relevant aggregation period. When the table observes
+multiple records sharing the same timestamp, it aggregates them.
+
+==== Creating a new aggregated table
+
+It is recommended to create an aggregated table by first creating a table for the
+aggregation. For example:
+
+[source,sql]
+----
+CREATE TABLE dsv_five_minute.QtypeQueryNameLengthShard
+(
+    Date Date,
+    DateTime DateTime,
+    NodeID UInt16,
+    QueryNameLength UInt16,
+    QueryType UInt16,
+    Count UInt32
+)
+ENGINE = SummingMergeTree()
+PARTITION BY toYearWeek(Date)
+ORDER BY (Date, DateTime, NodeID, QueryNameLength, QueryType);
+----
+
+After that, create a materialized view, selecting records from the raw query/response
+table for the aggregation:
+
+[source,sql]
+----
+CREATE MATERIALIZED VIEW dsv_five_minute.QtypeQueryNameLengthShardMV
+TO dsv_five_minute.QtypeQueryNameLengthShard
+AS SELECT
+    Date,
+    toStartOfFiveMinute(DateTime) AS DateTime,
+    NodeID,
+    toUInt16(length(QueryName)) AS QueryNameLength,
+    QueryType,
+    CAST(1 AS UInt32) AS Count
+FROM dsv.QueryResponseShard
+WHERE QueryResponseHasQuery;
+----
+
+It is possible in ClickHouse to create a single materialized view which contains its own
+backing table. However, if you later need to change or adjust the selection criteria on
+the view, it's difficult to do without dropping the entire backing table and losing all
+collected data. Separating the backing table and the view definitions avoids this.
+
+You'll also need a cluster-wide `Distributed` table for querying the aggregation across
+the whole cluster:
+
+[source,sql]
+----
+CREATE TABLE dsv_five_minute.QtypeQueryNameLength
+(
+    Date Date,
+    DateTime DateTime,
+    NodeID UInt16,
+    QueryNameLength UInt16,
+    QueryType UInt16,
+    Count UInt32
+)
+ENGINE = Distributed(dsv, dsv_five_minute, QtypeQueryNameLengthShard);
+----
+
+You can consult the source for the existing aggregations in `sql/clickhouse/dll/0011.sql`
+for examples.
+
+==== Raw data tables
+
+===== Raw query/response data
+
+The core source of query/response data entering Visualizer's ClickHouse tables
+is the raw query/response table. This is the table into which the TSV files produced
+by converting C-DNS files on the datastore are inserted.
+
+The raw table is in the `dsv` database and is called `QueryResponse`.
+It has the following schema:
+
+[source,sql]
+----
+CREATE TABLE dsv.QueryResponse
+(
+    Date Date,
+    DateTime DateTime,
+    NanoSecondsSinceEpoch UInt64,
+    NodeID UInt16,
+    ClientAddress FixedString(16),
+    ClientPort UInt16,
+    ClientHoplimit UInt8,
+    ClientGeoLocation UInt32,
+    ClientASN UInt32,
+    ServerAddress FixedString(16),
+    ServerPort UInt16,
+    TransportTCP UInt8,
+    TransportIPv6 UInt8,
+    QueryResponseHasQuery UInt8,
+    QueryResponseHasResponse UInt8,
+    QueryResponseQueryHasQuestion UInt8,
+    QueryResponseQueryHasOpt UInt8,
+    QueryResponseResponseHasQuestion UInt8,
+    QueryResponseResponseHasOpt UInt8,
+    QueryLength UInt16,
+    ResponseLength UInt16,
+    ID UInt16,
+    QueryOpcode UInt8,
+    QueryCheckingDisabled UInt8,
+    QueryAuthenticatedData UInt8,
+    QueryZ UInt8,
+    QueryRecursionAvailable UInt8,
+    QueryRecursionDesired UInt8,
+    QueryTruncated UInt8,
+    QueryAuthoritativeAnswer UInt8,
+    QueryDO UInt8,
+    QueryRcode UInt16,
+    QueryClass UInt16,
+    QueryType UInt16,
+    QueryName String,
+    QueryQDCount UInt16,
+    QueryANCount UInt16,
+    QueryARCount UInt16,
+    QueryNSCount UInt16,
+    QueryEDNSVersion UInt8,
+    QueryEDNSUDPMessageSize UInt16,
+    ResponseDelayNanoSeconds Int64,
+    ResponseCheckingDisabled UInt8,
+    ResponseAuthenticatedData UInt8,
+    ResponseZ UInt8,
+    ResponseRecursionAvailable UInt8,
+    ResponseRecursionDesired UInt8,
+    ResponseTruncated UInt8,
+    ResponseAuthoritativeAnswer UInt8,
+    ResponseRcode UInt16,
+    ResponseQDCount UInt16,
+    ResponseANCount UInt16,
+    ResponseARCount UInt16,
+    ResponseNSCount UInt16
+)
+----
+
+Note that ClickHouse does not have a Boolean data type. Many of the above fields
+of type `UInt8` are flags with values 0 or 1.
+
+Addresses are IPv6 addresses. IPv4 addresses are expressed as IPv4-mapped IPv6
+addresses, e.g. `::ffff:192.0.2.128`.
+
+ClickHouse data types cannot by default be NULL. Making a column able
+to contain a value or NULL imposes a storage and performance overhead, and
+so this schema does not do that. This does mean that quantities will have a default
+value (0 for numeric values, empty string for string) if that quantity is not present.
+For example, `QueryEDNSVersion` will be 0 if a query does not contain an OPT,
+or even a query. To determine if an EDNS Version was present, it is necessary
+to check `QueryResponseQueryHasOpt` as well.
+
+Visualizer includes sub-second timing information in its raw data, but at present
+Grafana does not cope with time intervals below a second, so no use is made
+ of the `NanoSecondsSinceEpoch` field.
+
+===== Packet count data
+
+As well as raw query/response data, C-DNS files may also contain statistics
+reporting on the number of packets received over the period of the file.
+If present, this data is adding during import to a raw table in database
+`dsv` called `PacketCounts`.
+[source,sql]
+----
+CREATE TABLE dsv.PacketCounts
+(
+    Date Date,
+    DateTime DateTime,
+    NodeID UInt16,
+    Duration UInt32 DEFAULT 300,
+    RawPackets UInt64,
+    MalformedPackets UInt64,
+    NonDNSPackets UInt64
+)
+----
+
+Duration gives the time period covered by the file in question in seconds.
+
+The raw packet count is the total number of packets (note, packets, not complete
+DNS messages) received.
+Malformed packets are packets that cannot be decoded into a valid IP or DNS
+packet.
+NonDNSPackets are packets that are valid IP or DNS packets, but not of
+interest at capture - for example, arriving on the interface at ports other than those
+being monitored, not recognised as IPv4 or IPv6 packets, or an unrecognised
+type.
+
+=== Adding new dashboards
+
+This section aspires to be a brief introduction to how to create new Grafana
+Visualizer displays. It is not a full introduction to Grafana;
+instead it is hoped to just give a brief outline
+of what Visualizer-specific things you'll need to know.
+
+==== Basic information
+
+A Grafana screen is a *Dashboard*. Each (useful) Dashboard contains one or
+more *Panels* . Each Panel is a plot (a graph). If this information is new to you, it is
+recommended that you head to http://docs.grafana.org/guides/getting_started/ and
+read the official Grafana Getting Started guide.
+
+Grafana has several different plot types available, but as a generalisation things are
+more difficult if you try to plot non time series data.
+For non time series bar charts, Visualizer uses a
+https://github.com/Sinodun/grafana-plotly-panel[modified version]
+of the Grafana Plotly plugin. The modified version adds bar charts to the
+list of Plotly plot types available through the plugin, and also adds
+an _auto-trace_ mode. Normally with this plugin, each trace (bar in the
+case of bar charts) must be specifed as part of the plot configuration.
+_Auto-trace_ allows traces to be built from the query data.
+
+The conventional process for building a set of Grafana dashboards is
+to construct the dashboards manually using the Grafana GUI.
+The configuration of the displays may then be downloaded as JSON files for
+archive.
+
+==== The ClickHouse plugin
+
+ClickHouse is not one of the data sources Grafana supports out of the box.
+Visualizer uses ClickHouse as a Grafana data source through the
+https://grafana.com/plugins/vertamedia-clickhouse-datasource[ClickHouse
+Grafana plugin]. The overview information for the plugin is a valuable
+source of background and hints. Note especially the Query Builder and
+associated macros.
+
+WARNING: One troublesome aspect of the ClickHouse plugin is the raw SQL
+editor. While potentially useful, the raw SQL is saved as part of the Dashboard,
+and this nullifies the attempts Grafana makes to not pester you to save the
+Dashboard when all that has changed is the time range. So beware - you might find
+that you are reqularly prompted to save the Dashboard, and you may not remember
+whether you have actually made any changes or just changed the time range!
+
+NOTE: Because of this, it is highly recommended  that users viewing data are given only
+Viewer privileges, and will not be guided into repeatedly saving the Dashboards.
+
+==== Grafanalib
+
+For systems, like Visualizer, that feature more than a few dashboards, and where
+those dashboards have features in common (for example, in the case of Visualizer,
+drop-downs allowing the user to restrict data being plotted on the dashboard to
+a subset of the available servers/regions/countries etc.), manual construction
+involves a lot of repetitive work, with the consequent danger of introducing bugs
+and inconsistencies between dashboards.
+
+In an effort to simplify dashboard generation and ensure consistency, the Visualizer
+Grafana displays herein are generated programmatically using a Python library,
+https://github.com/weaveworks/grafanalib[Grafanalib].
+Dashboards are described by Python scripts +name.dashboard.py+ and built
+into +name.dashboard.json+ JSON dashboard files for deployment by running
+
+----
+$ make json
+----
+
+from the project root directory. A copy of Grafanalib is included as submodule
+in the Visualizer source tree.
+
+==== Visualizer components
+
+There is a Python module in +common/grafanacommon.py+ that contains components specific
+to Visualizer displays. The following tables lists some commonly used items:
+
+.Visualizer Grafana components
+[cols="2*"]
+|===
+
+| `NodeTemplateDashboard`
+| A dashboard with node selection dropdowns and a default 24 hour display window.
+
+| `NODE_SELECT_SQL`
+| SQL fragment selecting node IDs specified in the node selection
+  dropdowns. Use in a `NodeID IN ...` clause.
+
+| `ClickHouseTarget`
+| A datasource target that uses the `dsv` database and sets other
+  appropriate defaults for the Visualizer ClickHouse database.
+
+| `QPSGraph`
+| A time-series graph using the Visualizer datasource and a single y axis
+  labelled _Queries per second_.
+
+| `RPSGraph`
+| A time-series graph using the Visualizer datasource and a single y axis
+  labelled _Responses per second_.
+
+| `GraphThreshold`, `GraphWithThreshold`
+| Add thresholds to the standard Grafana `Graph` component.
+
+| `BarChartLegend`, `BarChart`
+| A custom graph component for  drawing multi-value and stacked bar charts
+  from non-time-series data.
+
+| `Dashlist`
+| Generate a Grafana `Dashlist` panel. `Dashlist` panels display lists of
+dashboard generated by searching directories or tags. In practice, it is
+found that it's not possible to search by directories, as these have to be specified
+with a numeric ID that's specific to a particular Grafana installation. Instead,
+specify tags for each dashboard are used which can be searched for.
+
+|===
+
+==== Other useful tables
+
+Apart from aggregated data tables and the raw query/response table,
+there are also useful tables of supplementary data. These are ClickHouse
+dictionaries periodically populated from originals in PostgreSQL; in some
+circumstances it may be easier to use them as dictionaries, in others it's more
+convenient to use them as tables in the query.
+
+* `dsv.iana_text`. IANA text and values.
+* `dsv.tld_text`. TLDs and their classification.
+* `dsv.node_text`. Node IDs, names and other information.
+* `dsv.geolocation`. Location IDs with containing country ID (if relevant), plus a name
+  for the location and latitude/longitude in decimal.
+
+==== Developing new plots
+
+The crucial step in developing plots is formulating the correct ClickHouse SQL
+query and marrying presentation of its results with the Grafana component
+that draws the plot.
+
+It is suggested to first work on the required query. If possible, find an existing
+plot that is close to the desired new plot, and modify its query to produce
+the required results. Test the query manually using `clickhouse-client`.
+
+The next step is to generate the new or revised dashboard using Grafanalib.
+You can then upload the generated JSON to a test Grafana via the
+_Import_ button on the Grafana Dashboard Manage screen.
+Working within Grafana, modify the dashboard definition until the plot
+is as required (you may need to use the dashboard settings and mark
+the dashboard editable to be able to do this).
+
+Finally, go back to the Grafanalib definition and modify it to match the changes
+made in Grafana.

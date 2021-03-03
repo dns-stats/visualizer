@@ -1,0 +1,40 @@
+<dictionaries>
+  <comment>IANA text metadata</comment>
+  <dictionary>
+    <name>iana_text</name>
+    <source>
+      <odbc>
+        <connection_string>DSN=dsv</connection_string>
+        <table>iana_text</table>
+      </odbc>
+    </source>
+    <lifetime>300</lifetime>
+    <layout>
+      <complex_key_hashed/>
+    </layout>
+    <structure>
+      <key>
+        <attribute>
+          <name>registry_name</name>
+          <type>String</type>
+          <null_value/>
+        </attribute>
+        <attribute>
+          <name>value_name</name>
+          <type>String</type>
+          <null_value/>
+        </attribute>
+      </key>
+      <attribute>
+        <name>value</name>
+        <type>UInt32</type>
+        <null_value>0</null_value>
+      </attribute>
+      <attribute>
+        <name>value_description</name>
+        <type>String</type>
+        <null_value>Unknown</null_value>
+      </attribute>
+    </structure>
+  </dictionary>
+</dictionaries>

@@ -1,0 +1,36 @@
+= dsv-log(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-log - log to Visualizer logging
+
+== SYNOPSIS
+
+*dsv-log* [_OPTION_]... [_TEXT_]...
+
+== DESCRIPTION
+
+Log text, or an empty line if no text specified, to the Visualizer logger.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+*-l, --level*::
+  The logging level to use. Must be `critical`, `error`, `warning`,
+  `info` or `debug`. If not specified, `info` is used.
+
+== EXAMPLE
+
+----
+$ dsv-log -l debug File already present.
+----
+
+== EXIT STATUS
+
+0 on success, non-zero on any error.

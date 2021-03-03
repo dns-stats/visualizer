@@ -1,0 +1,45 @@
+= dsv-tld-update(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-tld-update - update Visualizer details of Top Level Domains (TLDs)
+
+== SYNOPSIS
+
+*dsv-tld-update* [_OPTION_]...
+
+== DESCRIPTION
+
+Download the latest list of Top Level Domains from IANA and update the
+TLD information in the Postgres database.
+
+TLDs no longer present in the IANA list are deleted.
+New TLDs are added. If they can be determined to be country code TLDs,
+they are assigned a TLD type of `ccTLD`. Otherwise they are assigned a
+type of `New-gTLD`.
+
+Each addition or removal is logged.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+*-v, --verbose*::
+  Report each addition or removal to standard output.
+
+*-n, --dry-run*::
+  If enabled, treats update as a trial run. Changes are logged and optionally reported,
+  but the Postgres database is not altered.
+
+== EXIT STATUS
+
+Non-zero on any error.
+
+== SEE ALSO
+
+link:dsv.cfg.adoc[dsv.cfg].

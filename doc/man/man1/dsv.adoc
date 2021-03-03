@@ -1,0 +1,51 @@
+= dsv(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv - issue DNS STATS Visualizer commands
+
+== SYNOPSIS
+
+*dsv* _COMMAND_ [_OPTION_]... [_ARGS_]...
+
+== DESCRIPTION
+
+All Visualizer commands can be run using the `dsv` command, followed by the
+sub-command required. Alternatively they can be run as `dsv-<subcommand>`.
+
+The following commands may be available:
+
+* `clickhouse-sys-info` - report system info for ClickHouse to use.
+* `clickhouse-update` - update Visualizer ClickHouse schema on host.
+* `config` - get Visualizer configuration value.
+* `find-node-id` - get Visualizer node ID for server.
+* `import-freeze` - freeze Visualizer imports.
+* `import-thaw` - resume Visualizer imports.
+* `import` - scan file store and add new jobs to processing queue.
+* `log` - log text to Visualizer logging.
+* `nodes-update` - update Visualizer node details from file.
+* `postgres-update` - update Visualizer PostgreSQL schema on host.
+* `prune` - delete old Visualizer ClickHouse partitions.
+* `queue-freeze` - freeze Visualizer queue.
+* `queue-thaw` - resume Visualizer queue.
+* `rssac-daemon-tester` - send DNS NOTIFY message.
+* `rssac-daemon` - daemon listening for DNS NOTIFY.
+* `rssac-notify` - performs actions to be done on receiving DNS NOTIFY.
+* `rssac-reports` - generate RSSAC reports.
+* `status` - print current Visualizer queue status.
+* `tls-update` - update current list of TLDs.
+* `worker` - process jobs from Visualizer queues.
+
+== SEE ALSO
+
+`dsv-clickhouse-update`(1), `dsv-config`(1), `dsv-find-node-id`(1),
+`dsv-import`(1), `dsv-nodes-update`(1), `dsv-postgres-update`(1),
+`dsv-status`(1), `dsv-worker`(1)
+
+== EXIT STATUS
+
+0 on success, non-zero on any error.

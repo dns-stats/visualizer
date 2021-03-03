@@ -1,0 +1,43 @@
+= dsv-import-thaw(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-import-thaw - thaw Visualizer data import
+
+== SYNOPSIS
+
+*dsv-import-thaw* [_OPTION_]...
+
+== DESCRIPTION
+
+Thaw Visualizer import. All subsequent calls to `dsv-import` will
+proceed with the import.
+
+This command must be run as the user owning the datastore, or `root`.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+== EXAMPLE
+
+----
+$ dsv-import-thaw
+Visualizer import thawed.
+----
+
+== EXIT STATUS
+
+0 on success, non-zero on any error or import already thawed.
+
+
+== SEE ALSO
+
+link:dsv-import-freeze.adoc[dsv-import-freeze(1)],
+link:dsv-import.adoc[dsv-import(1)],
+link:dsv.cfg.adoc[dsv.cfg(5)].

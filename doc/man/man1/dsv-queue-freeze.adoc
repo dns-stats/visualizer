@@ -1,0 +1,42 @@
+= dsv-queue-freeze(1)
+Jim Hague, Sinodun Internet Technologies
+:manmanual: DNS-STATS-VISUALIZER
+:mansource: DNS-STATS-VISUALIZER
+:man-linkstyle: blue R <>
+
+== NAME
+
+dsv-queue-freeze - freeze processing for named Visualizer queue
+
+== SYNOPSIS
+
+*dsv-queue-freeze* [_OPTION_]... [_QUEUENAME_]...
+
+== DESCRIPTION
+
+Freeze named Visualizer queue. All subsequent calls to `dsv-queue` will
+exit with the message _Visualizer queue <name> already frozen_.
+
+This command must be run as the user owning the datastore, or `root`.
+
+== OPTIONS
+
+*-c, --config* [_arg_]::
+  Configuration file location. Default is `/etc/dns-stats-visualizer/dsv.conf`.
+
+== EXAMPLE
+
+----
+$ dsv-queue-freeze import-tsv
+Visualizer queue import-tsv frozen.
+----
+
+== EXIT STATUS
+
+0 on success, non-zero on any error or queue already frozen.
+
+== SEE ALSO
+
+link:dsv-queue-thaw.adoc[dsv-queue-thaw(1)],
+link:dsv-status.adoc[dsv-status(1)],
+link:dsv.cfg.adoc[dsv.cfg(5)].

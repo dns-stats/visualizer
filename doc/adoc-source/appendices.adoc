@@ -1,0 +1,178 @@
+== Appendices
+
+=== Appendix A: Importing archived data
+
+In the event of a loss of data from the Visualizer database, data from the `cbor`
+directory can be imported to rebuild the database.
+
+==== Priorities
+
+GearMan jobs have an associated priority. All jobs processing incoming C-DNS
+are queued at normal priority. Jobs processing files from the `cbor` directory
+(i.e. archived data imports) are queued at low priority, to ensure that keeping
+up with incoming flows is prioritised, and importing old data takes what
+resources are left.
+
+==== Processing
+
+Use the command
+[source,console]
+----
+$ dsv-import -s cbor
+----
+and optionally provide start and end dates or date-times to select the files to be
+processed. This will cause Visualizer to create a `pending` directory under the
+`cbor` directory that is then processed in a similar and parallel way
+to the processing of files under `incoming`, though PCAP files are not generated.
+
+NOTE: Entries in filter files relating to import (including or excluding nodes or servers)
+will be observed. See the manual page for `dsv-import` for details.
+
+Specifically, this causes the following to be done for all applicable files in `*/cbor`:
+
+* Hard link file to `cbor/pending` and submit job to convert the file
+   in `cbor/pending` to TSV at low priority.
+
+=== Appendix B: Generating PCAP files
+
+==== During import
+
+PCAP files can be generated automatically when importing files from `incoming` directories. PCAP files are placed in the `pcap` directory for the node in question.
+
+PCAP generation is configured with the server filter file.
+See the manual page for `dsv-import` for details.
+
+==== After import
+
+PCAP files can be generated manually from already imported C-DNS files in node `cbor` directories.
+
+Use the command
+[source,shell-session]
+----
+$ dsv-import -s pcap
+----
+and optionally provide start and end dates or date-times to select the files to be processed.
+
+NOTE: Entries in filter files relating to PCAP generation (including or excluding
+nodes or servers) will be observed. See the manual page for `dsv-import` for
+details.
+
+Specifically, this causes the following to be done for all applicable files in `*/cbor`:
+
+* Hard link file to `pcap/pending` and submit job to convert the file
+   in `pcap/pending` to PCAP at low priority.
+
+
+==== Priorities
+
+GearMan jobs have an associated priority. All jobs processing incoming C-DNS
+are queued at normal priority. Jobs generating PCAP are queued at low priority,
+to ensure that keeping up with incoming flows is prioritised.
+
+==== Pseudo-anonymisation
+
+All generated PCAP files can be pseudo-anonymised at the time of generation.
+
+To configure this, pseudo-anonymisation must be specified and there must be a pseudo-anonymisation key or passphrase specified in `/etc/dns-stats-visualizer/dsv.cfg`.
+If both a key and a passphrase are configured, the key is used.
+See the manual page for `dsv.cfg` for details on the configuration settings.
+See the user guide for `compactor` and `inspector` for more details on pseudo-anonymisation.
+
+[source,ini]
+----
+[pcap]
+pseudo-anonymise=Y
+pseudo-anonymisation-passphrase=My Clever PassPhrase
+----
+
+
+=== Appendix C: Automated monitoring recipes
+
+==== Number of `dsv-worker` processing jobs
+
+All `dsv-worker` processes can potentially process any of the Visualizer queues.
+To find the number of workers available for queue processing, query the number of workers for one of the queues:
+
+[source,console]
+----
+$ dsv-status -q cdns-to-tsv workers
+25
+----
+
+==== Length of a Visualizer import queue
+
+`dsv-status` can produce individual numbers for any of the reported quantities.
+
+[source,console]
+----
+$ dsv-status -q <queue> <item>
+----
+
+where `queue` is one of `cdns-to-tsv`, `import-tsv` and `cdns-to-pcap` and `item` is one of `len`, `running` and `workers`.
+
+So, for example, to report the number of items in the TSV import queue:
+
+[source,console]
+----
+$ dsv-status -q import-tsv len
+2
+----
+
+==== Data import levels (total q/s)
+
+The following command runs a ClickHouse query that reports the number of queries per second averaged over a minute one hour previously to current time:
+
+[source, bash]
+----
+$ clickhouse-client -d dsv -q "SELECT sum(QueryCount)/60 FROM QueriesPerSecond WHERE DateTime BETWEEN now() - 3660 AND now() - 3600"
+128295.5
+----
+
+==== Data conversion errors
+
+A conversion error results in a new entry in a node `error` directory.
+The command `dsv-queue-details` reports on the number of entries in
+`incoming`, `pending` and `error` directories.
+
+=== Appendix D : Queue processing jobs
+
+This section briefly describes the detailed actions performed by the Visualizer
+queue specific processes. Each job has a single argument, the path of file to
+be processed.
+
+
+==== `dsv-cdns-to-tsv`
+
+. From the file path, extract the file node and server names. The node name is assumed
+  to be the directory *above* the file directory, unless the file directory name is
+  `pending`, in which case it's the directory two levels above the file directory.
+  The server name is the  name of the directory above the node directory.
+. Call `dsv-find-node-id` to get the Visualizer node ID.
+. Check the file still exists. If it does not, it's possible the file got inadvertently added
+  to the queue more than once, so exit with a success code.
+. Run the file through the pipe `cat file | cdnsdumper | split` to generate one
+  or more TSV files. If the filename ends `.xz`, replace `cat` with decompression
+  to standard out. The TSV output is split to ensure that imports stay within the
+  recommended ClickHouse limits.
+. Add each TSV output file to the queue `import-tsv`.
+
+==== `dsv-import-tsv`
+
+. Check the file still exists. If it does not, it's possible the file got inadvertently added
+  to the queue more than once, so exit with a success code.
+. Read the first record of the TSV and extract `Date`, `DateTime`, `Nanoseconds`
+  `Node ID` and `Query ID`. See if the database already contains a record with
+  those values. If it does, the TSV must have been imported already, so exit with
+  a success code.
+. Import the TSV data into the raw table.
+
+==== `dsv-cdns-to-pcap`
+
+. From the file path, extract the file node and server names. The node name is assumed
+  to be the directory *above* the file directory, unless the file directory name is
+  `pending`, in which case it's the directory two levels above the file directory.
+  The server name is the name of the directory above the node directory.
+. Check the file still exists. If it does not, it's possible the file got inadvertently added
+  to the queue more than once, so exit with a success code.
+. Run the file through the pipe `cat file | inspector` to generate a PCAP file.
+  If the filename ends `.xz`, replace `cat` with decompression to standard out.
