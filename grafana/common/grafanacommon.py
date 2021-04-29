@@ -75,7 +75,7 @@ NODE_SELECT_TEMPLATE = GCore.Templating(
 )
 
 
-INSTANCE_SELECT_SQL = '( SELECT toUInt16(node_id) FROM dsv.node_text WHERE instance_name IN ($Instance) AND server_name IN ($Server) )'
+INSTANCE_SELECT_SQL = '( SELECT toUInt16(node_id) FROM dsv.node_text WHERE instance_name IN ($Instance) AND server_name IN ($Server) AND region_name in ($Region) and country_name in ($Country) and city_name in ($City) )'
 
 INSTANCE_SELECT_TEMPLATE_LIST = [
     GCore.Template(
