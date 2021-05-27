@@ -1,3 +1,10 @@
+dns-stats-visualizer (1.0.1-1) bionic; urgency=low
+
+  * Change name of bar chart plugin to fix clash with original plugin.
+  * Fix instance selector to select on all items.
+
+ -- Jim Hague <jim@sinodun.com>  Thu, 27 May 2021 14:51:00 +0000
+
 dns-stats-visualizer (1.0.0-1) bionic; urgency=low
 
   * Initial release.
