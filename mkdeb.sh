@@ -17,8 +17,8 @@ find grafana/dashboards -name "*.json" | xargs tar -cf - | tar -C dist_deb/dsv-p
 cp -pR grafana/provisioning dist_deb/dsv-packages
 
 # Now the Grafana bar chart. This needs to go into Grafana plugins.
-mkdir -p dist_deb/dsv-packages/grafana/plugins/natel-plotly-panel
-(cd tools/natel-plotly-panel; git archive HEAD) | tar -C dist_deb/dsv-packages/grafana/plugins/natel-plotly-panel -xf -
+mkdir -p dist_deb/dsv-packages/grafana/plugins/sinodun-natel-plotly-panel
+(cd tools/sinodun-natel-plotly-panel; git archive HEAD) | tar -C dist_deb/dsv-packages/grafana/plugins/sinodun-natel-plotly-panel -xf -
 
 # The Python ClickHouse driver.
 mkdir -p dist_deb/dsv-packages/tools/clickhouse-driver

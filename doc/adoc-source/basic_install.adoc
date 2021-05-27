@@ -441,7 +441,7 @@ $ sudo grafana-cli plugins ls
 installed plugins:
 grafana-image-renderer @ 2.0.0
 grafana-worldmap-panel @ 0.3.2
-natel-plotly-panel @ 0.0.7-dev
+sinodun-natel-plotly-panel @ 0.0.7-dev
 vertamedia-clickhouse-datasource @ 2.2.0
 ----
 

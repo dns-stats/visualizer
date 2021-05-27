@@ -509,7 +509,7 @@ def ClickHouseTableTarget(**kwargs):
     )
     return attr.evolve(res, **kwargs)
 
-BAR_CHART_TYPE = 'natel-plotly-panel'
+BAR_CHART_TYPE = 'sinodun-natel-plotly-panel'
 
 PLOTLY_CHART_TYPE_BAR = 'bar'
 PLOTLY_CHART_TYPE_SCATTER = 'scatter'
@@ -517,7 +517,7 @@ PLOTLY_CHART_TYPE_SCATTER = 'scatter'
 @attr.s
 class BarChart:
     """
-    Generates a bar chart using (our modified) natel-plotly-panel.
+    Generates a bar chart using (our modified) sinodun-natel-plotly-panel.
 
     :param dataSource: DataSource's name
     :param title: Panel title

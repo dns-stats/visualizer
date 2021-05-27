@@ -3,7 +3,7 @@
 	url = https://github.com/weaveworks/grafanalib
 	branch = master
 [submodule "submodule.tools/natel-plotly-panel.path"]
-	path = tools/natel-plotly-panel
+	path = tools/sinodun-natel-plotly-panel
 	url = https://github.com/Sinodun/grafana-plotly-panel
 	branch = dist
 [submodule "submodule.tools/clickhouse-driver.path"]
