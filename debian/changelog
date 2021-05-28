@@ -2,8 +2,10 @@ dns-stats-visualizer (1.0.1-1) bionic; urgency=low
 
   * Change name of bar chart plugin to fix clash with original plugin.
   * Fix instance selector to select on all items.
+  * Add more Chrome pre-requisites to Grafana package for image
+    rendering plugin.
 
- -- Jim Hague <jim@sinodun.com>  Thu, 27 May 2021 14:51:00 +0000
+ -- Jim Hague <jim@sinodun.com>  Fri, 28 May 2021 16:47:00 +0100
 
 dns-stats-visualizer (1.0.0-1) bionic; urgency=low
 

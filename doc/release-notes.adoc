@@ -2,10 +2,11 @@
 Jim Hague <jim@sinodun.com>
 
 == Release 1.0.1
-Released 2021-05-27.
+Released 2021-05-28.
 
 * Change name of bar chart plugin to fix clash with original plugin.
 * Fix instance selector to select on all items.
+* Add more Chrome pre-requisites to Grafana package for image rendering plugin.
 
 == Release 1.0.0
 Released 2021-02-11.
